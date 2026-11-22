@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strings"
+	"sync/atomic"
 
 	"github.com/mansoor-mamnoon/wormsign/internal/pkgs"
 )
@@ -27,6 +28,7 @@ type Inventory struct {
 type Options struct {
 	Roots    []string
 	MaxDepth int
+	Progress *atomic.Int64 // incremented per directory, for a live counter
 }
 
 // skipNames are directories never worth descending into: caches, VCS
@@ -83,6 +85,9 @@ func Walk(opt Options) *Inventory {
 				}
 				seen[path] = true
 				inv.DirsWalked++
+				if opt.Progress != nil {
+					opt.Progress.Add(1)
+				}
 				if strings.Count(path, string(os.PathSeparator))-base > opt.MaxDepth {
 					return fs.SkipDir
 				}
