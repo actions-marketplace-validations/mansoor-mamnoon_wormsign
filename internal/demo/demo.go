@@ -62,7 +62,7 @@ func realName(rel string) string {
 func Credentials() []ioc.Credential {
 	return []ioc.Credential{
 		{Name: "npm token", Path: "~/.npmrc", Rotate: "npm token revoke <id> (npmjs.com, Access Tokens page), then `npm login`"},
-		{Name: "GitHub CLI token", Path: "~/.config/gh/hosts.yml", Rotate: "`gh auth refresh` or revoke at github.com/settings/applications"},
+		{Name: "GitHub CLI token", Path: "~/.config/gh/hosts.yml", Rotate: "Revoke GitHub CLI access at github.com/settings/applications, then authenticate again"},
 		{Name: "AWS keys", Path: "~/.aws/credentials", Rotate: "Deactivate the access keys in IAM and issue new ones"},
 		{Name: "SSH key id_ed25519", Path: "~/.ssh/id_ed25519", Rotate: "Generate a new key, replace it on GitHub/servers"},
 		{Name: "Claude Code login", Path: "~/.claude/.credentials.json", Rotate: "`claude /logout`, then log in again"},
