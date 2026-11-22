@@ -4,7 +4,7 @@
 <g font-family="ui-monospace,SFMono-Regular,Menlo,Consolas,monospace" font-size="14" xml:space="preserve">
 <text x="22" y="58"><tspan fill="#5fd787">$</tspan><tspan fill="#e6e6e6"> </tspan><tspan fill="#e6e6e6" font-weight="700">wormsign --demo</tspan></text>
 <text x="22" y="78"></text>
-<text x="22" y="98"><tspan fill="#e6e6e6" font-weight="700">wormsign</tspan><tspan fill="#e6e6e6"> </tspan><tspan fill="#8a8f98">v0.1.0</tspan></text>
+<text x="22" y="98"><tspan fill="#e6e6e6" font-weight="700">wormsign</tspan><tspan fill="#e6e6e6"> </tspan><tspan fill="#8a8f98">0.1.0</tspan></text>
 <text x="22" y="118"></text>
 <text x="22" y="138"><tspan fill="#e6e6e6">  </tspan><tspan fill="#ff6b6b">✗</tspan><tspan fill="#e6e6e6"> </tspan><tspan fill="#ff6b6b" font-weight="700">Packages        2 MALICIOUS</tspan><tspan fill="#e6e6e6"> of 4 packages</tspan></text>
 <text x="22" y="158"><tspan fill="#e6e6e6">      </tspan><tspan fill="#e6e6e6" font-weight="700">@ctrl/tinycolor@4.1.1</tspan><tspan fill="#e6e6e6">  MAL-2025-47141  </tspan><tspan fill="#8a8f98">Malicious code in @ctrl/tinycolor (npm)</tspan></text>
@@ -17,36 +17,36 @@
 <text x="22" y="298"><tspan fill="#e6e6e6">      </tspan><tspan fill="#ff6b6b">CRITICAL</tspan><tspan fill="#e6e6e6"> Claude Code SessionStart hook starts a hidden background process; references a known worm file</tspan></text>
 <text x="22" y="318"><tspan fill="#e6e6e6">        ~/acme-dashboard/.claude/settings.json</tspan></text>
 <text x="22" y="338"><tspan fill="#e6e6e6">        </tspan><tspan fill="#8a8f98">nohup bun run .claude/setup_bun.js &gt;/dev/null 2&gt;&amp;1 &amp;</tspan></text>
-<text x="22" y="358"><tspan fill="#e6e6e6">        → Not yours? Delete the hook and treat this machine&#x27;s credentials as stolen.</tspan></text>
+<text x="22" y="358"><tspan fill="#e6e6e6">        fix: If you did not add this hook, delete it and treat this machine&#x27;s credentials as stolen.</tspan></text>
 <text x="22" y="378"></text>
 <text x="22" y="398"><tspan fill="#e6e6e6">  </tspan><tspan fill="#ff6b6b">✗</tspan><tspan fill="#e6e6e6"> Editors         1 finding</tspan></text>
 <text x="22" y="418"><tspan fill="#e6e6e6">      </tspan><tspan fill="#ff6b6b">CRITICAL</tspan><tspan fill="#e6e6e6"> VS Code task &quot;env-setup&quot; runs on folder open and references a known worm file</tspan></text>
 <text x="22" y="438"><tspan fill="#e6e6e6">        ~/acme-dashboard/.vscode/tasks.json</tspan></text>
 <text x="22" y="458"><tspan fill="#e6e6e6">        </tspan><tspan fill="#8a8f98">node .claude/setup_bun.js</tspan></text>
-<text x="22" y="478"><tspan fill="#e6e6e6">        → Not yours? Delete the task.</tspan></text>
+<text x="22" y="478"><tspan fill="#e6e6e6">        fix: If you did not add this task, delete it.</tspan></text>
 <text x="22" y="498"></text>
 <text x="22" y="518"><tspan fill="#e6e6e6">  </tspan><tspan fill="#ff6b6b">✗</tspan><tspan fill="#e6e6e6"> CI workflows    1 finding</tspan></text>
 <text x="22" y="538"><tspan fill="#e6e6e6">      </tspan><tspan fill="#ff6b6b">CRITICAL</tspan><tspan fill="#e6e6e6"> Workflow runs attacker-controlled discussion/issue text on a self-hosted runner</tspan></text>
 <text x="22" y="558"><tspan fill="#e6e6e6">        ~/acme-dashboard/.github/workflows/discussion.yaml</tspan></text>
 <text x="22" y="578"><tspan fill="#e6e6e6">        </tspan><tspan fill="#8a8f98">${{ github.event.discussion.body }}</tspan></text>
-<text x="22" y="598"><tspan fill="#e6e6e6">        → Not yours? Delete it and rotate every repo and org secret.</tspan></text>
+<text x="22" y="598"><tspan fill="#e6e6e6">        fix: If you did not write this workflow, delete it and rotate every repo and org secret.</tspan></text>
 <text x="22" y="618"></text>
 <text x="22" y="638"><tspan fill="#e6e6e6">  </tspan><tspan fill="#5fd787">✓</tspan><tspan fill="#e6e6e6"> Autostart       </tspan><tspan fill="#8a8f98">launch agents, services, cron and shell rc clean</tspan></text>
 <text x="22" y="658"><tspan fill="#e6e6e6">  </tspan><tspan fill="#ff6b6b">✗</tspan><tspan fill="#e6e6e6"> Worm artifacts  1 finding</tspan></text>
 <text x="22" y="678"><tspan fill="#e6e6e6">      </tspan><tspan fill="#ff6b6b">CRITICAL</tspan><tspan fill="#e6e6e6"> Shai-Hulud 2.0 loader found inside an installed package</tspan></text>
 <text x="22" y="698"><tspan fill="#e6e6e6">        ~/acme-dashboard/node_modules/keyv/setup_bun.js</tspan></text>
-<text x="22" y="718"><tspan fill="#e6e6e6">        → Delete node_modules, reinstall from a clean lockfile, rotate credentials.</tspan></text>
+<text x="22" y="718"><tspan fill="#e6e6e6">        fix: Delete node_modules, reinstall from a clean lockfile, rotate credentials.</tspan></text>
 <text x="22" y="738"></text>
 <text x="22" y="758"><tspan fill="#e6e6e6">  </tspan><tspan fill="#ff6b6b" font-weight="700">Likely compromised.</tspan><tspan fill="#e6e6e6"> Assume every credential below was stolen.</tspan></text>
-<text x="22" y="778"><tspan fill="#e6e6e6">  Rotate them from a </tspan><tspan fill="#e6e6e6" font-weight="700">different, clean machine</tspan><tspan fill="#e6e6e6"> — the worm may still be watching this one.</tspan></text>
+<text x="22" y="778"><tspan fill="#e6e6e6">  Rotate them from a </tspan><tspan fill="#e6e6e6" font-weight="700">different machine</tspan><tspan fill="#e6e6e6">; this one may still be running the payload.</tspan></text>
 <text x="22" y="798"></text>
-<text x="22" y="818"><tspan fill="#e6e6e6">    </tspan><tspan fill="#ff6b6b">•</tspan><tspan fill="#e6e6e6"> npm token              </tspan><tspan fill="#8a8f98">npm token revoke &lt;id&gt; (npmjs.com → Access Tokens), then `npm login`</tspan></text>
+<text x="22" y="818"><tspan fill="#e6e6e6">    </tspan><tspan fill="#ff6b6b">•</tspan><tspan fill="#e6e6e6"> npm token              </tspan><tspan fill="#8a8f98">npm token revoke &lt;id&gt; (npmjs.com, Access Tokens page), then `npm login`</tspan></text>
 <text x="22" y="838"><tspan fill="#e6e6e6">    </tspan><tspan fill="#ff6b6b">•</tspan><tspan fill="#e6e6e6"> GitHub CLI token       </tspan><tspan fill="#8a8f98">`gh auth refresh` or revoke at github.com/settings/applications</tspan></text>
 <text x="22" y="858"><tspan fill="#e6e6e6">    </tspan><tspan fill="#ff6b6b">•</tspan><tspan fill="#e6e6e6"> AWS keys               </tspan><tspan fill="#8a8f98">Deactivate the access keys in IAM and issue new ones</tspan></text>
 <text x="22" y="878"><tspan fill="#e6e6e6">    </tspan><tspan fill="#ff6b6b">•</tspan><tspan fill="#e6e6e6"> SSH key id_ed25519     </tspan><tspan fill="#8a8f98">Generate a new key, replace it on GitHub/servers</tspan></text>
 <text x="22" y="898"><tspan fill="#e6e6e6">    </tspan><tspan fill="#ff6b6b">•</tspan><tspan fill="#e6e6e6"> Claude Code login      </tspan><tspan fill="#8a8f98">`claude /logout`, then log in again</tspan></text>
 <text x="22" y="918"></text>
-<text x="22" y="938"><tspan fill="#e6e6e6">  </tspan><tspan fill="#8a8f98">Scanned 7 dirs, 1 workflow, 2 configs in 400ms</tspan></text>
+<text x="22" y="938"><tspan fill="#e6e6e6">  </tspan><tspan fill="#8a8f98">Scanned 7 dirs, 1 workflow, 2 configs in 500ms</tspan></text>
 <text x="22" y="958"></text>
-<text x="22" y="978"><tspan fill="#e6e6e6">  (demo: that was a fake project in a temp dir — run `wormsign` to scan your machine)</tspan></text>
+<text x="22" y="978"><tspan fill="#e6e6e6">  (demo: this was a fake project in a temp directory. Run `wormsign` to scan this machine.)</tspan></text>
 </g></svg>
