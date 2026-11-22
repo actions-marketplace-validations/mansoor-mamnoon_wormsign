@@ -81,3 +81,24 @@ func TestOfflineDetectionDoesNotClaimConfirmedCompromise(t *testing.T) {
 		t.Fatalf("misleading detection report:\n%s", text)
 	}
 }
+
+// The walker resolves a symlinked root, so paths can come back under the
+// resolved home while the caller passes the unresolved one.
+func TestTildeMatchesSymlinkedHome(t *testing.T) {
+	real := t.TempDir()
+	link := filepath.Join(t.TempDir(), "home")
+	if err := os.Symlink(real, link); err != nil {
+		t.Skip("symlinks unavailable:", err)
+	}
+	resolved, err := filepath.EvalSymlinks(real)
+	if err != nil {
+		t.Fatal(err)
+	}
+	res := &scan.Result{Findings: []ioc.Finding{{Severity: ioc.Critical, Check: "payload-files", Title: "x",
+		Path: filepath.Join(resolved, "app", "setup_bun.js")}}}
+	var out bytes.Buffer
+	Text(&out, res, NewStyle(false), link, "test")
+	if want := filepath.Join("~", "app", "setup_bun.js"); !strings.Contains(out.String(), want) {
+		t.Fatalf("want %s in:\n%s", want, out.String())
+	}
+}
