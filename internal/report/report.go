@@ -9,13 +9,17 @@ import (
 	"slices"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/mansoor-mamnoon/wormsign/internal/ioc"
 	"github.com/mansoor-mamnoon/wormsign/internal/scan"
 )
 
 // Style holds ANSI codes; empty when color is off.
-type Style struct{ red, yellow, green, dim, bold, reset string }
+type Style struct{ red, yellow, green, dim, bold, reset styleCode }
+
+// styleCode distinguishes trusted formatting from untrusted scanned strings.
+type styleCode string
 
 func NewStyle(color bool) Style {
 	if !color {
@@ -58,7 +62,14 @@ var groups = []struct {
 // Text renders the human report: the verdict first, then what was found and
 // where, then numbered steps.
 func Text(w io.Writer, r *scan.Result, s Style, home, version string) {
-	p := func(format string, a ...any) { fmt.Fprintf(w, format, a...) }
+	p := func(format string, a ...any) {
+		for i, value := range a {
+			if text, ok := value.(string); ok {
+				a[i] = terminalText(text)
+			}
+		}
+		fmt.Fprintf(w, format, a...)
+	}
 	tilde := func(path string) string {
 		if home != "" && (path == home || strings.HasPrefix(path, home+string(os.PathSeparator))) {
 			return "~" + path[len(home):]
@@ -259,6 +270,18 @@ func Text(w io.Writer, r *scan.Result, s Style, home, version string) {
 		}
 		p("\n")
 	}
+}
+
+func terminalText(text string) string {
+	var out strings.Builder
+	for _, r := range text {
+		if unicode.IsControl(r) || unicode.Is(unicode.Cf, r) {
+			fmt.Fprintf(&out, "\\u%04x", r)
+		} else {
+			out.WriteRune(r)
+		}
+	}
+	return out.String()
 }
 
 func countIf(n int, noun string) string {
