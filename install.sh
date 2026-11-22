@@ -25,7 +25,11 @@ mkdir -p "$BIN_DIR"
 
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
-base="https://github.com/$REPO/releases/latest/download"
+if [ -n "${WORMSIGN_VERSION:-}" ]; then
+  base="https://github.com/$REPO/releases/download/v${WORMSIGN_VERSION#v}"
+else
+  base="https://github.com/$REPO/releases/latest/download"
+fi
 file="wormsign_${os}_${arch}.tar.gz"
 
 echo "Downloading $file..."
