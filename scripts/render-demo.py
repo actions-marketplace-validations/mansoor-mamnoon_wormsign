@@ -1,72 +1,72 @@
 #!/usr/bin/env python3
-"""Render real offline demo output as a GIF (requires Pillow).
+"""Record real `wormsign --demo` output and render it as docs/demo.gif.
 
-Usage: python3 scripts/render-demo.py /path/to/wormsign /path/to/monospace.ttf
-The command is executed once. Frame timing is for presentation, not a benchmark.
+Usage: python3 scripts/render-demo.py /path/to/wormsign
+
+Runs the binary once, online, so the GIF shows the actual OSV.dev lookup
+finding the malicious keyv release. Needs `agg` (asciinema gif generator) on
+PATH. Typing and line timing are for presentation, not a benchmark.
 """
 
+import json
 import os
-from pathlib import Path
+import shutil
 import subprocess
 import sys
-import textwrap
+import tempfile
+from pathlib import Path
 
-from PIL import Image, ImageDraw, ImageFont
+COMMAND = "wormsign --demo"
+COLS = 104
 
-binary, font_path = sys.argv[1:]
-command = "wormsign --demo --offline"
-result = subprocess.run(
-    [str(Path(binary).resolve()), "--demo", "--offline"],
-    env={**os.environ, "NO_COLOR": "1"},
+binary = Path(sys.argv[1]).resolve()
+if not shutil.which("agg"):
+    sys.exit("render-demo: agg not found (https://github.com/asciinema/agg)")
+
+out = subprocess.run(
+    [str(binary), "--demo"],
+    env={**os.environ, "FORCE_COLOR": "1"},
     check=True,
     capture_output=True,
     text=True,
+).stdout
+# Room for the prompt line, a blank line and every output line, so the
+# typed command never scrolls off the top of the final frame.
+ROWS = out.count("\n") + 4
+if "MAL-" not in out:
+    sys.exit("render-demo: OSV lookup did not report the keyv release; is the network up?")
+
+events, t = [], 0.4
+
+
+def emit(text, delay):
+    global t
+    t += delay
+    events.append([round(t, 3), "o", text])
+
+
+emit("\x1b[32m$\x1b[0m ", 0.0)
+for ch in COMMAND:
+    emit(ch, 0.07)
+emit("\r\n", 0.35)
+frames = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
+for i in range(14):
+    emit(f"\r\x1b[K{frames[i % len(frames)]} checking 3 packages against OSV.dev...", 0.08)
+emit("\r\x1b[K", 0.08)
+for line in out.rstrip("\n").split("\n"):
+    emit(line + "\r\n", 0.045)
+emit("\x1b[?25l", 0.05)  # hide the cursor on the final frame
+emit("", 6.0)
+
+target = Path(__file__).resolve().parents[1] / "docs" / "demo.gif"
+with tempfile.NamedTemporaryFile("w", suffix=".cast", delete=False) as cast:
+    cast.write(json.dumps({"version": 2, "width": COLS, "height": ROWS}) + "\n")
+    for e in events:
+        cast.write(json.dumps(e, ensure_ascii=False) + "\n")
+subprocess.run(
+    ["agg", "--font-size", "15", "--theme", "monokai", "--last-frame-duration", "6", cast.name, str(target)],
+    check=True,
+    capture_output=True,
 )
-output = result.stdout.strip("\n")
-lines = []
-for line in output.splitlines():
-    indent = len(line) - len(line.lstrip())
-    lines.extend(textwrap.wrap(
-        line, width=112, replace_whitespace=False,
-        subsequent_indent=" " * indent,
-    ) or [""])
-
-font = ImageFont.truetype(font_path, 19)
-cell = font.getlength("M")
-line_height, padding, header_height = 27, 28, 48
-width = round(112 * cell) + padding * 2
-height = header_height + padding * 2 + line_height * (len(lines) + 3)
-
-
-def frame(typed, visible):
-    canvas = Image.new("RGB", (width, height), "#111820")
-    draw = ImageDraw.Draw(canvas)
-    draw.rectangle((0, 0, width, header_height), fill="#1c2633")
-    draw.text((padding, 12), "wormsign | offline demo | harmless fixture", font=font, fill="#aebdcb")
-    y = header_height + padding
-    draw.text((padding, y), "$ " + command[:typed], font=font, fill="#a8dfab")
-    y += line_height * 2
-    for line in lines[:visible]:
-        draw.text((padding, y), line, font=font, fill="#e0e6ed")
-        y += line_height
-    return canvas
-
-
-frames, durations = [], []
-for typed in range(0, len(command) + 1, 2):
-    frames.append(frame(typed, 0))
-    durations.append(80)
-frames.append(frame(len(command), 0))
-durations.append(250)
-for visible in range(4, len(lines), 4):
-    frames.append(frame(len(command), visible))
-    durations.append(180)
-frames.append(frame(len(command), len(lines)))
-durations.append(12000)
-
-# One palette keeps terminal colors stable throughout the animation.
-palette = frames[-1].quantize(colors=64)
-frames = [f.quantize(palette=palette, dither=Image.Dither.NONE) for f in frames]
-target = Path(__file__).resolve().parents[1] / "docs/demo.gif"
-frames[0].save(target, save_all=True, append_images=frames[1:], duration=durations, loop=0, optimize=True)
-print(f"Rendered {target}: {width}x{height}, {len(frames)} frames")
+os.unlink(cast.name)
+print(f"rendered {target} ({target.stat().st_size // 1024} KB)")
