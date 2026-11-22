@@ -16,8 +16,7 @@ func TestScanReportEscapesUntrustedTerminalControls(t *testing.T) {
 	root := t.TempDir()
 	// A server name is repository-controlled. Rendering it must not execute
 	// OSC clipboard operations, erase the screen, or forge a clean verdict.
-	name := "server\x1b]52;c;ZXhmaWw=\x07\r\nCLEAN\u202e"
-	name = strings.ReplaceAll(name, "\\x1b", "\x1b")
+	name := "\u202e\r\x07\x1b]52;c;x\x07\nCLEAN"
 	config, err := json.Marshal(map[string]any{"mcpServers": map[string]any{name: map[string]string{"command": "node"}}})
 	if err != nil {
 		t.Fatal(err)

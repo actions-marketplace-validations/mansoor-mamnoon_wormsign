@@ -151,10 +151,12 @@ func (c *Client) batch(ctx context.Context, ps []pkgs.Package) ([][]string, erro
 		}
 		var next []query
 		var nextIndexes []int
+		var pageErrors []error
 		for i, r := range out.Results {
 			index := indexes[i]
 			if r == nil {
-				return res, fmt.Errorf("osv: null result for %s", ps[index].String())
+				pageErrors = append(pageErrors, fmt.Errorf("osv: null result for %s", ps[index].String()))
+				continue
 			}
 			for _, v := range r.Vulns {
 				if !slices.Contains(res[index], v.ID) {
@@ -166,7 +168,8 @@ func (c *Client) batch(ctx context.Context, ps []pkgs.Package) ([][]string, erro
 					seenTokens[index] = map[string]bool{}
 				}
 				if seenTokens[index][token] {
-					return res, fmt.Errorf("osv: repeated page token for %s", ps[index].String())
+					pageErrors = append(pageErrors, fmt.Errorf("osv: repeated page token for %s", ps[index].String()))
+					continue
 				}
 				seenTokens[index][token] = true
 				q := qs[i]
@@ -174,6 +177,9 @@ func (c *Client) batch(ctx context.Context, ps []pkgs.Package) ([][]string, erro
 				next = append(next, q)
 				nextIndexes = append(nextIndexes, index)
 			}
+		}
+		if err := errors.Join(pageErrors...); err != nil {
+			return res, err
 		}
 		qs, indexes = next, nextIndexes
 	}

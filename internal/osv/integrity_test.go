@@ -83,6 +83,33 @@ func TestLaterBatchFailurePreservesMalware(t *testing.T) {
 	}
 }
 
+func TestInvalidResultDoesNotDiscardLaterPackageMalware(t *testing.T) {
+	for _, invalid := range []string{`{"next_page_token":"same"}`, "null"} {
+		t.Run(invalid, func(t *testing.T) {
+			calls := 0
+			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				if r.URL.Path != "/v1/querybatch" {
+					w.Write([]byte(`{"id":"MAL-known"}`))
+					return
+				}
+				calls++
+				if calls == 1 {
+					w.Write([]byte(`{"results":[{"next_page_token":"same"},{"next_page_token":"more"}]}`))
+					return
+				}
+				w.Write([]byte(`{"results":[` + invalid + `,{"vulns":[{"id":"MAL-known"}]}]}`))
+			}))
+			defer srv.Close()
+			client := New()
+			client.BaseURL = srv.URL
+			hits, err := client.Check(context.Background(), []pkgs.Package{{Name: "first", Version: "1.0.0", Ecosystem: pkgs.NPM}, {Name: "second", Version: "1.0.0", Ecosystem: pkgs.NPM}})
+			if err == nil || len(hits) != 1 || hits[0].Package.Name != "second" || !hits[0].Advisories[0].Malicious {
+				t.Fatalf("lost later result evidence: %+v %v", hits, err)
+			}
+		})
+	}
+}
+
 func TestLaterPageFailurePreservesMalware(t *testing.T) {
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/v1/querybatch" {

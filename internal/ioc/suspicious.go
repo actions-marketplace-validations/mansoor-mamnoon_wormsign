@@ -12,7 +12,7 @@ var suspiciousRules = []struct {
 	strong bool // a single match is enough to call it critical
 }{
 	{regexp.MustCompile(`(?i)\b(curl|wget)\b[^|;&]*\|\s*(ba|z|da)?sh\b`), "pipes a download into a shell", false},
-	{regexp.MustCompile(`(?i)\b(curl|wget|iwr|invoke-webrequest)\b.*(?:\s(?:-d|--data(?:-ascii|-binary|-raw|-urlencode)?|--upload-file|-F|-T)(?:[\s=]|$)|\bPOST\b)`), "uploads data to a remote server", false},
+	{regexp.MustCompile(`(?i:\b(curl|wget|iwr|invoke-webrequest)\b).*(?:\s(?:-d|--data(?:-ascii|-binary|-raw|-urlencode)?|--upload-file|-F|-T)(?:[\s=]|$)|(?i:\bPOST\b))`), "uploads data to a remote server", false},
 	{regexp.MustCompile(`(?i)base64\s+(-d|--decode|-D)\b|frombase64string|atob\(`), "decodes a base64 payload", false},
 	{regexp.MustCompile(`(?i)\b(node|bun|deno)\s+(-e|--eval|-p)\b`), "runs inline JavaScript", false},
 	{regexp.MustCompile(`(?i)\bpython3?\s+-c\b.*(exec|eval|urllib|socket|base64)`), "runs inline Python that fetches or evals", false},
