@@ -51,3 +51,21 @@ func TestWalk(t *testing.T) {
 		t.Errorf("node_modules: %v", inv.NodeModules)
 	}
 }
+
+func TestMissingRootIsReported(t *testing.T) {
+	inv := Walk(Options{Roots: []string{filepath.Join(t.TempDir(), "missing")}})
+	if len(inv.Errors) != 1 {
+		t.Fatalf("missing root errors: %v", inv.Errors)
+	}
+}
+
+func TestDepthLimitIsReported(t *testing.T) {
+	root := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(root, "a", "b"), 0700); err != nil {
+		t.Fatal(err)
+	}
+	inv := Walk(Options{Roots: []string{root}, MaxDepth: 1})
+	if len(inv.Errors) != 1 || !strings.Contains(inv.Errors[0].Error(), "maximum scan depth") {
+		t.Fatalf("depth errors: %v", inv.Errors)
+	}
+}

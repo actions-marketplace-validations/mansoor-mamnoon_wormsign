@@ -86,14 +86,28 @@ func Text(w io.Writer, r *scan.Result, s Style, home, version string) {
 	case r.Critical():
 		p("  %s%s✗ COMPROMISED%s  %s\n\n", s.red, s.bold, s.reset, joinNonEmpty(
 			countIf(len(r.Hits), "malicious package"), countIf(traces, "worm trace")))
-	case r.OSVError != "":
-		p("  %s%s! NOT CHECKED%s  packages could not be checked: %s\n\n", s.yellow, s.bold, s.reset, r.OSVError)
+	case r.Incomplete():
+		p("  %s%s! PARTIAL%s  some checks failed; see scan limitations below\n\n", s.yellow, s.bold, s.reset)
 	case warns > 0:
 		p("  %s%s! REVIEW%s  no known-malicious packages; %s to look at\n\n", s.yellow, s.bold, s.reset, count(warns, "warning"))
 	case !r.OSVChecked && r.Packages > 0:
 		p("  %s%s! PARTIAL%s  no worm traces; packages not checked (--offline)\n\n", s.yellow, s.bold, s.reset)
 	default:
 		p("  %s%s✓ CLEAN%s  no known-malicious packages and no worm traces\n\n", s.green, s.bold, s.reset)
+	}
+
+	if r.Incomplete() {
+		p("  %sScan limitations%s\n", s.bold, s.reset)
+		if r.OSVError != "" {
+			p("    Package lookup failed: %s\n", r.OSVError)
+		}
+		for _, err := range r.ParseErrors {
+			p("    Could not parse %s\n", tilde(err))
+		}
+		for _, err := range r.ScanErrors {
+			p("    %s\n", tilde(err))
+		}
+		p("\n")
 	}
 
 	// 2. Malicious packages.
@@ -162,7 +176,7 @@ func Text(w io.Writer, r *scan.Result, s Style, home, version string) {
 			clean = append(clean, g.label)
 		}
 	}
-	if len(clean) > 0 {
+	if len(clean) > 0 && !r.Incomplete() {
 		p("  %s✓%s %sChecked and clean: %s%s\n\n", s.green, s.reset, s.dim, strings.Join(clean, ", "), s.reset)
 	}
 

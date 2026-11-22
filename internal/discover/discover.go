@@ -4,6 +4,8 @@
 package discover
 
 import (
+	"context"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -26,6 +28,7 @@ type Inventory struct {
 
 // Options controls the walk.
 type Options struct {
+	Context  context.Context
 	Roots    []string
 	MaxDepth int
 	Progress *atomic.Int64 // incremented per directory, for a live counter
@@ -57,6 +60,9 @@ func skipDir(name string) bool {
 
 // Walk scans every root.
 func Walk(opt Options) *Inventory {
+	if opt.Context == nil {
+		opt.Context = context.Background()
+	}
 	if opt.MaxDepth == 0 {
 		opt.MaxDepth = 14
 	}
@@ -65,11 +71,12 @@ func Walk(opt Options) *Inventory {
 	for _, root := range opt.Roots {
 		root = filepath.Clean(root)
 		base := strings.Count(root, string(os.PathSeparator))
-		filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		walkErr := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+			if err := opt.Context.Err(); err != nil {
+				return err
+			}
 			if err != nil {
-				if path != root && !os.IsPermission(err) {
-					inv.Errors = append(inv.Errors, err)
-				}
+				inv.Errors = append(inv.Errors, err)
 				if d != nil && d.IsDir() {
 					return fs.SkipDir
 				}
@@ -95,6 +102,7 @@ func Walk(opt Options) *Inventory {
 					opt.Progress.Add(1)
 				}
 				if strings.Count(path, string(os.PathSeparator))-base > opt.MaxDepth {
+					inv.Errors = append(inv.Errors, fmt.Errorf("%s: maximum scan depth %d reached", path, opt.MaxDepth))
 					return fs.SkipDir
 				}
 				switch name {
@@ -110,6 +118,10 @@ func Walk(opt Options) *Inventory {
 			inv.file(path, name)
 			return nil
 		})
+		if walkErr != nil {
+			inv.Errors = append(inv.Errors, walkErr)
+			break
+		}
 	}
 	return inv
 }

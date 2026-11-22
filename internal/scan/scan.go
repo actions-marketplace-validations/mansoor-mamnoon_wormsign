@@ -53,6 +53,7 @@ type Result struct {
 	OSVChecked  bool             `json:"osv_checked"`
 	ProjectOnly bool             `json:"project_only"`
 	OSVError    string           `json:"osv_error,omitempty"`
+	ScanErrors  []string         `json:"scan_errors,omitempty"`
 	ParseErrors []string         `json:"parse_errors,omitempty"`
 }
 
@@ -85,10 +86,29 @@ func (r *Result) Warnings() bool {
 	return false
 }
 
+// Incomplete reports failures that prevent a complete verdict.
+func (r *Result) Incomplete() bool {
+	return r.OSVError != "" || len(r.ParseErrors) > 0 || len(r.ScanErrors) > 0
+}
+
+// ExitCode preserves critical detections even when another check fails.
+func (r *Result) ExitCode(strict bool) int {
+	if r.Critical() {
+		return 1
+	}
+	if r.Incomplete() {
+		return 2
+	}
+	if strict && r.Warnings() {
+		return 1
+	}
+	return 0
+}
+
 // Run performs the scan.
 func Run(ctx context.Context, opt Options) *Result {
 	start := time.Now()
-	inv := discover.Walk(discover.Options{Roots: opt.Roots, Progress: opt.Progress})
+	inv := discover.Walk(discover.Options{Roots: opt.Roots, Progress: opt.Progress, Context: ctx})
 	machine := !opt.ProjectOnly
 	if machine && !opt.NoGlobals {
 		inv.AddGlobals(opt.Home)
@@ -100,6 +120,8 @@ func Run(ctx context.Context, opt Options) *Result {
 	for _, e := range inv.Errors {
 		if pe, ok := e.(*discover.ParseError); ok {
 			res.ParseErrors = append(res.ParseErrors, pe.Error())
+		} else {
+			res.ScanErrors = append(res.ScanErrors, e.Error())
 		}
 	}
 
@@ -162,6 +184,9 @@ func Run(ctx context.Context, opt Options) *Result {
 	res.ProjectOnly = opt.ProjectOnly
 
 	sort.SliceStable(res.Findings, func(i, j int) bool { return res.Findings[i].Severity > res.Findings[j].Severity })
+	if err := ctx.Err(); err != nil && len(res.ScanErrors) == 0 {
+		res.ScanErrors = append(res.ScanErrors, err.Error())
+	}
 	res.Duration = time.Since(start)
 	return res
 }
