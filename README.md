@@ -27,7 +27,10 @@ That's it. It scans your whole home directory and tells you.
 ## Install
 
 ```sh
-# macOS / Linux: checksum-verified binary (read the script first, it's short)
+# Homebrew (macOS / Linux)
+brew install mansoor-mamnoon/tap/wormsign
+
+# or a checksum-verified binary (read the script first, it's short)
 curl -fsSL https://raw.githubusercontent.com/mansoor-mamnoon/wormsign/main/install.sh | sh
 
 # or with Go
