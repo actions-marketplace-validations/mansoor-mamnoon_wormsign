@@ -2,7 +2,7 @@
 
 <h1 align="center">wormsign</h1>
 
-<p align="center">Checks a developer machine for npm and PyPI supply-chain worms.</p>
+<p align="center">Tells you in one command whether an npm or PyPI worm reached your machine,<br>and which credentials to rotate if one did.</p>
 
 <p align="center">
   <a href="https://github.com/mansoor-mamnoon/wormsign/actions/workflows/ci.yml"><img src="https://github.com/mansoor-mamnoon/wormsign/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
@@ -11,31 +11,39 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT"></a>
 </p>
 
-<p align="center"><img src="docs/demo.svg" alt="wormsign --demo output" width="820"></p>
+```sh
+brew install mansoor-mamnoon/tap/wormsign
+wormsign
+```
+
+It needs no config file, account or API key. It scans your home directory and prints one of
+three verdicts: CLEAN, REVIEW or COMPROMISED.
+
+<p align="center"><img src="docs/demo.gif" alt="wormsign --demo finds a malicious keyv release, a Claude Code hook and a VS Code task, then lists the credentials to rotate" width="820"></p>
+
+<p align="center"><sub>A detection, recorded with <code>wormsign --demo</code>, which scans a harmless fake infected project.</sub></p>
+
+## Why
 
 Since September 2025, self-spreading worms (Shai-Hulud, Mini Shai-Hulud, SANDWORM_MODE,
 ChainDrop) have stolen npm and GitHub tokens and republished themselves into hundreds of
 packages. ChainDrop alone infected over 400 packages in four hours in August 2026. After each
 outbreak, developers are told to check whether they installed an affected version.
 
-`wormsign` does that check for every project in your home directory in one command. It reads
-every lockfile and installed package tree, compares each version with the OSV.dev malware feed,
-and looks for the hooks, tasks and services these worms install to run again later. A scan of
-29,000 directories and 235 lockfiles takes about 12 seconds on a laptop.
+`wormsign` does that check for every project in your home directory. It reads every lockfile
+and installed package tree, compares each version with the OSV.dev malware feed, and looks for
+the hooks, tasks and services these worms install to run again later. A scan of 29,000
+directories and 235 lockfiles takes about 12 seconds on a laptop.
 
-## Install
+## Other ways to install
 
-```sh
-brew install mansoor-mamnoon/tap/wormsign
-```
-
-Or download the release binary. The script verifies its SHA-256 checksum; it is under 60 lines.
+Download the release binary. The script verifies its SHA-256 checksum; it is under 60 lines.
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/mansoor-mamnoon/wormsign/main/install.sh | sh
 ```
 
-Or build it with Go 1.22 or later:
+Build it with Go 1.22 or later:
 
 ```sh
 go install github.com/mansoor-mamnoon/wormsign@latest
