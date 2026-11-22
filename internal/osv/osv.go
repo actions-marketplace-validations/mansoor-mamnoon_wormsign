@@ -10,6 +10,8 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
+	"slices"
 	"strings"
 	"sync"
 	"time"
@@ -81,14 +83,16 @@ func IsMalicious(id string, aliases []string) bool {
 // Check queries all packages and returns the ones with matching advisories.
 func (c *Client) Check(ctx context.Context, ps []pkgs.Package) ([]Hit, error) {
 	ids := make([][]string, len(ps))
+	var batchErr error
 	for start := 0; start < len(ps); start += batchSize {
 		end := min(start+batchSize, len(ps))
 		res, err := c.batch(ctx, ps[start:end])
-		if err != nil {
-			return nil, err
-		}
 		for i, r := range res {
 			ids[start+i] = r
+		}
+		if err != nil {
+			batchErr = err
+			break
 		}
 	}
 
@@ -120,7 +124,7 @@ func (c *Client) Check(ctx context.Context, ps []pkgs.Package) ([]Hit, error) {
 			hits = append(hits, Hit{Package: ps[i], Advisories: advs})
 		}
 	}
-	return hits, detailErr
+	return hits, errors.Join(batchErr, detailErr)
 }
 
 func (c *Client) batch(ctx context.Context, ps []pkgs.Package) ([][]string, error) {
@@ -140,24 +144,26 @@ func (c *Client) batch(ctx context.Context, ps []pkgs.Package) ([][]string, erro
 		body, _ := json.Marshal(map[string]any{"queries": qs})
 		var out batchResp
 		if err := c.post(ctx, "/v1/querybatch", body, &out); err != nil {
-			return nil, err
+			return res, err
 		}
 		if len(out.Results) != len(qs) {
-			return nil, fmt.Errorf("osv: expected %d results, got %d", len(qs), len(out.Results))
+			return res, fmt.Errorf("osv: expected %d results, got %d", len(qs), len(out.Results))
 		}
 		var next []query
 		var nextIndexes []int
 		for i, r := range out.Results {
 			index := indexes[i]
 			for _, v := range r.Vulns {
-				res[index] = append(res[index], v.ID)
+				if !slices.Contains(res[index], v.ID) {
+					res[index] = append(res[index], v.ID)
+				}
 			}
 			if token := r.NextPageToken; token != "" {
 				if seenTokens[index] == nil {
 					seenTokens[index] = map[string]bool{}
 				}
 				if seenTokens[index][token] {
-					return nil, fmt.Errorf("osv: repeated page token for %s", ps[index].String())
+					return res, fmt.Errorf("osv: repeated page token for %s", ps[index].String())
 				}
 				seenTokens[index][token] = true
 				q := qs[i]
@@ -184,7 +190,11 @@ func (c *Client) fetchAll(ctx context.Context, ids map[string]bool) (map[string]
 			defer wg.Done()
 			defer func() { <-sem }()
 			var a Advisory
-			if err := c.get(ctx, "/v1/vulns/"+id, &a); err != nil {
+			err := c.get(ctx, "/v1/vulns/"+url.PathEscape(id), &a)
+			if err == nil && (id == "" || a.ID != id) {
+				err = fmt.Errorf("response advisory ID does not match requested ID")
+			}
+			if err != nil {
 				mu.Lock()
 				errs = append(errs, fmt.Errorf("osv: advisory %s: %w", id, err))
 				mu.Unlock()
