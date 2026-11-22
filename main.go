@@ -107,7 +107,9 @@ func main() {
 	res := scan.Run(ctx, opts)
 	stopSpinner()
 	if *demoMode {
+		// The fixture is fake, so its commands are safe to show.
 		res.Credentials = demo.Credentials()
+		res.HideCommands = false
 	}
 
 	if *jsonOut {

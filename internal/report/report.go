@@ -197,6 +197,11 @@ func Text(w io.Writer, r *scan.Result, s Style, home, version string) {
 			if f.Evidence != "" {
 				p("      %s%s%s\n", s.dim, truncate(f.Evidence, 100), s.reset)
 			}
+			// The redacted command lets a person recognize their own hook or
+			// task. CI runs (--project) leave it out: job summaries can be public.
+			if f.Command != "" && !r.HideCommands {
+				p("      %s%s%s\n", s.dim, truncate(f.Command, 100), s.reset)
+			}
 		}
 		p("\n")
 	}

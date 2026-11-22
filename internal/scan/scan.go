@@ -53,8 +53,11 @@ type Result struct {
 	Credentials []ioc.Credential `json:"credentials"`
 	OSVChecked  bool             `json:"osv_checked"`
 	ProjectOnly bool             `json:"project_only"`
-	OSVError    string           `json:"osv_error,omitempty"`
-	ScanErrors  []string         `json:"scan_errors,omitempty"`
+	// HideCommands keeps redacted command lines out of the text report.
+	// Project (CI) scans set it because job summaries can be public.
+	HideCommands bool     `json:"-"`
+	OSVError     string   `json:"osv_error,omitempty"`
+	ScanErrors   []string `json:"scan_errors,omitempty"`
 	// Skipped lists directories not read (depth limit, no permission).
 	Skipped     []string `json:"skipped_dirs,omitempty"`
 	ParseErrors []string `json:"parse_errors,omitempty"`
@@ -203,6 +206,7 @@ func Run(ctx context.Context, opt Options) *Result {
 		res.Credentials = ioc.Credentials(opt.Home)
 	}
 	res.ProjectOnly = opt.ProjectOnly
+	res.HideCommands = opt.ProjectOnly
 
 	sort.SliceStable(res.Findings, func(i, j int) bool { return res.Findings[i].Severity > res.Findings[j].Severity })
 	if err := ctx.Err(); err != nil && len(res.ScanErrors) == 0 {
