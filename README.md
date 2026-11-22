@@ -120,7 +120,7 @@ the machine, covers PyPI, and reads global installs and the npx cache. It also f
 tasks and services that remain after the bad package is upgraded.
 
 osv-scanner, Socket and Snyk keep bad packages out of a project before and during install.
-wormsign is for the day a worm is announced: it tells you whether this machine was hit and
+wormsign is for the day a worm is announced. It tells you whether this machine was hit and
 which credentials to rotate.
 
 ## False positives
