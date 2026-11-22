@@ -65,6 +65,12 @@ func TestClaudeHooks(t *testing.T) {
 	if fs := ClaudeHooks(p, false); len(fs) != 1 {
 		t.Fatalf("global hooks should only report suspicious ones: %+v", fs)
 	}
+	// Benign hooks on other events (formatters etc.) are normal.
+	q := write(t, dir, "b/.claude/settings.json", `{"hooks": {"PostToolUse": [{"matcher": "Edit", "hooks": [
+	  {"type": "command", "command": "prettier --write \"$FILE\""}]}]}}`)
+	if fs := ClaudeHooks(q, true); len(fs) != 0 {
+		t.Fatalf("benign PostToolUse hook flagged: %+v", fs)
+	}
 }
 
 func TestVSCodeTasks(t *testing.T) {

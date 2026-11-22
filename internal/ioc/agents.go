@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"runtime"
+	"slices"
 	"sort"
 	"strings"
 )
@@ -27,12 +28,31 @@ func ClaudeHooks(path string, projectLevel bool) []Finding {
 	if readJSONC(path, &s) != nil {
 		return nil
 	}
-	var out []Finding
 	events := make([]string, 0, len(s.Hooks))
 	for e := range s.Hooks {
 		events = append(events, e)
 	}
 	sort.Strings(events)
+
+	// One finding per file: suspicious hooks, then (for repo-level files)
+	// clean SessionStart hooks, which are the exact persistence trick worms
+	// use and worth a look even when the command looks harmless.
+	type agg struct {
+		sev      Severity
+		events   []string
+		reasons  []string
+		evidence string
+		n        int
+	}
+	var bad, auto agg
+	addUnique := func(list []string, items ...string) []string {
+		for _, it := range items {
+			if !slices.Contains(list, it) {
+				list = append(list, it)
+			}
+		}
+		return list
+	}
 	for _, event := range events {
 		for _, group := range s.Hooks[event] {
 			for _, h := range group.Hooks {
@@ -40,28 +60,37 @@ func ClaudeHooks(path string, projectLevel bool) []Finding {
 					continue
 				}
 				reasons, sev := classify(h.Command)
-				if sev == Info && !projectLevel {
-					continue // the user's own global hooks, nothing odd about them
-				}
-				f := Finding{
-					Severity: sev,
-					Check:    "claude-hooks",
-					Path:     path,
-					Evidence: truncate(h.Command, 200),
-					Fix:      "If you didn't add this hook, delete it and treat this machine's credentials as exposed.",
-				}
+				a := &bad
 				if sev == Info {
-					// A committed hook that runs on every session is the exact
-					// persistence trick worms use; it's worth a look even if clean.
-					f.Severity = Warn
-					f.Title = fmt.Sprintf("Repo-level Claude Code %s hook runs a command automatically", event)
-					f.Fix = "Confirm a teammate added this on purpose (check git log for this file)."
-				} else {
-					f.Title = fmt.Sprintf("Claude Code %s hook %s", event, joinReasons(reasons))
+					if !projectLevel || event != "SessionStart" {
+						continue
+					}
+					a = &auto
 				}
-				out = append(out, f)
+				a.n++
+				a.sev = max(a.sev, sev)
+				a.events = addUnique(a.events, event)
+				a.reasons = addUnique(a.reasons, reasons...)
+				if a.evidence == "" || sev > Warn {
+					a.evidence = truncate(h.Command, 200)
+				}
 			}
 		}
+	}
+	var out []Finding
+	if bad.n > 0 {
+		out = append(out, Finding{
+			Severity: bad.sev, Check: "claude-hooks", Path: path, Evidence: bad.evidence,
+			Title: fmt.Sprintf("Claude Code hooks (%d × %s): %s", bad.n, strings.Join(bad.events, ", "), joinReasons(bad.reasons)),
+			Fix:   "If you didn't add these, delete them and treat this machine's credentials as exposed.",
+		})
+	}
+	if auto.n > 0 {
+		out = append(out, Finding{
+			Severity: Warn, Check: "claude-hooks", Path: path, Evidence: auto.evidence,
+			Title: "Repo-level Claude Code SessionStart hook runs a command every time the repo is opened",
+			Fix:   "Confirm a teammate added this on purpose (git log -- .claude/settings.json).",
+		})
 	}
 	return out
 }
