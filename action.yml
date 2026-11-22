@@ -1,5 +1,5 @@
 name: wormsign scan
-description: Fail CI when a lockfile pins a known-malicious npm or PyPI version, or the repo contains worm persistence (agent hooks, auto-run tasks, backdoored workflows).
+description: Fails CI when a lockfile pins a known-malicious npm or PyPI version, or the repo contains worm persistence.
 author: mansoor-mamnoon
 branding:
   icon: shield
