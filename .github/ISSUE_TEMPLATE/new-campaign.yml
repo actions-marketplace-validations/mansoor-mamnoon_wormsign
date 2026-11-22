@@ -1,0 +1,29 @@
+name: New worm / campaign indicators
+description: A new supply-chain campaign wormsign should detect
+labels: [indicators]
+body:
+  - type: input
+    id: name
+    attributes:
+      label: Campaign name and date
+      placeholder: e.g. ChainDrop, 2026-08-04
+    validations:
+      required: true
+  - type: textarea
+    id: refs
+    attributes:
+      label: Write-ups
+      description: Links to vendor or researcher analyses.
+    validations:
+      required: true
+  - type: textarea
+    id: iocs
+    attributes:
+      label: Indicators on a developer machine
+      description: Dropped file names, persistence locations, hook/task contents, C2 domains. Package versions are covered automatically via OSV once listed there.
+  - type: checkboxes
+    id: osv
+    attributes:
+      label: OSV
+      options:
+        - label: The malicious versions are already in OSV.dev (search osv.dev for the package)

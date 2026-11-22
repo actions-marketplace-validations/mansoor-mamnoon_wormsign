@@ -1,0 +1,18 @@
+name: False positive / false negative
+description: wormsign flagged something benign, or missed something real
+labels: [accuracy]
+body:
+  - type: textarea
+    id: output
+    attributes:
+      label: wormsign output
+      description: Paste the relevant finding. Remove anything private.
+      render: text
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: What it actually is
+    validations:
+      required: true
