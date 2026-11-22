@@ -80,6 +80,12 @@ func Walk(opt Options) *Inventory {
 				if path != root && skipDir(name) {
 					return fs.SkipDir
 				}
+				// Agent plugin catalogs list plugins you *could* install;
+				// their MCP configs aren't active on this machine.
+				if name == "marketplaces" && filepath.Base(filepath.Dir(path)) == "plugins" ||
+					name == ".tmp" && filepath.Base(filepath.Dir(path)) == ".codex" {
+					return fs.SkipDir
+				}
 				if seen[path] {
 					return fs.SkipDir
 				}
