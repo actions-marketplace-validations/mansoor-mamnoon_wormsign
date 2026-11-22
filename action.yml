@@ -9,7 +9,7 @@ inputs:
     description: Directory to scan.
     default: "."
   version:
-    description: wormsign version to install, for example 0.1.4. Defaults to the latest release.
+    description: wormsign version to install, for example 0.1.5. Defaults to the latest release.
     default: ""
   args:
     description: Whitespace-separated extra flags, for example "--strict". Shell quoting and glob expansion are not supported.

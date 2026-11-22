@@ -61,8 +61,8 @@ go install github.com/mansoor-mamnoon/wormsign@latest
 Windows binaries are on the releases page. wormsign is not published to npm. A tool that
 checks for npm compromise should not need `npm install` to run.
 
-To pin a version, set `WORMSIGN_VERSION=0.1.4` for the install script or use
-`go install github.com/mansoor-mamnoon/wormsign@v0.1.4`.
+To pin a version, set `WORMSIGN_VERSION=0.1.5` for the install script or use
+`go install github.com/mansoor-mamnoon/wormsign@v0.1.5`.
 
 ## Usage
 
@@ -133,7 +133,7 @@ jobs:
       - uses: mansoor-mamnoon/wormsign@v0
         # with:
         #   args: --strict      # fail on warnings too
-        #   version: 0.1.4      # pin the scanner
+        #   version: 0.1.5      # pin the scanner
 ```
 
 The action runs `wormsign --project` on the repository and writes the report to the job
@@ -194,6 +194,7 @@ It needs network access and [agg](https://github.com/asciinema/agg).
 
 ## Changelog
 
+- 0.1.5: checks dev container lifecycle commands (`initializeCommand` runs on the host).
 - 0.1.4: skipped directories no longer mark a scan as partial; scans are four times faster;
   reports show the redacted command behind each finding; the demo shows the OSV hit again.
 - 0.1.3: stricter handling of incomplete scans, OSV pagination, safer severities for generic
