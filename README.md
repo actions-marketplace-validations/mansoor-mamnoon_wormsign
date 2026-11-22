@@ -28,6 +28,10 @@ wormsign --demo --offline
 The demo creates a temporary project with a fake worm payload, Claude hook and VS Code task.
 It skips machine-wide checks and uses a fake credential list.
 
+<p align="center"><img src="docs/demo.gif" alt="wormsign 0.1.3 offline demo: DETECTED verdict for three fixture indicators, package lookup explicitly skipped, and a fake credential rotation checklist" width="1000"></p>
+
+<p align="center"><sub>Actual output of <code>wormsign --demo --offline</code> against a harmless fixture. Package versions are not checked in offline mode.</sub></p>
+
 ## Why use it?
 
 Upgrading a malicious package does not remove a hook or service it already installed.
