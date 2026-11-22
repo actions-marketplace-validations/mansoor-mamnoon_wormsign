@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -134,7 +135,7 @@ func Run(ctx context.Context, opt Options) *Result {
 		case dir == ".vscode" && base == "tasks.json":
 			res.Findings = append(res.Findings, ioc.VSCodeTasks(p)...)
 		case base == ".mcp.json" || base == "mcp.json":
-			servers = append(servers, ioc.ReadMCP(p, "project")...)
+			servers = append(servers, ioc.ReadMCP(p, mcpOwner(p, opt.Home))...)
 		}
 	}
 	servers = dedupeServers(servers)
@@ -170,6 +171,19 @@ func locate(hits []osv.Hit, sources []pkgs.Source) []MalHit {
 		out = append(out, MalHit{Package: h.Package, Advisories: h.Advisories, Locations: where[h.Package.Key()]})
 	}
 	return out
+}
+
+// mcpOwner names who a project-level MCP file belongs to: an installed
+// agent plugin, or the project directory it sits in.
+func mcpOwner(path, home string) string {
+	dir := filepath.Dir(path)
+	if b := filepath.Base(dir); b == ".cursor" || b == ".vscode" {
+		dir = filepath.Dir(dir)
+	}
+	if strings.HasPrefix(path, filepath.Join(home, ".claude", "plugins")) {
+		return "plugin " + filepath.Base(dir)
+	}
+	return "repo " + filepath.Base(dir)
 }
 
 func dedupeServers(in []ioc.MCPServer) []ioc.MCPServer {
