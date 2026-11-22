@@ -23,8 +23,11 @@ type Options struct {
 	Offline      bool
 	IncludeVulns bool
 	NoGlobals    bool
-	Progress     *atomic.Int64
-	OSV          *osv.Client
+	// ProjectOnly scans just the given roots: no global installs, user-level
+	// agent configs, autostart entries or credential inventory. For CI.
+	ProjectOnly bool
+	Progress    *atomic.Int64
+	OSV         *osv.Client
 }
 
 // MalHit is a malicious package and everywhere it was found.
@@ -48,6 +51,7 @@ type Result struct {
 	MCPServers  []ioc.MCPServer  `json:"mcp_servers"`
 	Credentials []ioc.Credential `json:"credentials"`
 	OSVChecked  bool             `json:"osv_checked"`
+	ProjectOnly bool             `json:"project_only"`
 	OSVError    string           `json:"osv_error,omitempty"`
 	ParseErrors []string         `json:"parse_errors,omitempty"`
 }
@@ -85,7 +89,8 @@ func (r *Result) Warnings() bool {
 func Run(ctx context.Context, opt Options) *Result {
 	start := time.Now()
 	inv := discover.Walk(discover.Options{Roots: opt.Roots, Progress: opt.Progress})
-	if !opt.NoGlobals {
+	machine := !opt.ProjectOnly
+	if machine && !opt.NoGlobals {
 		inv.AddGlobals(opt.Home)
 	}
 	inv.ScanProjectNodeModules()
@@ -118,14 +123,16 @@ func Run(ctx context.Context, opt Options) *Result {
 
 	// Coding agents and editors.
 	globalClaude := map[string]bool{}
-	for _, name := range []string{"settings.json", "settings.local.json"} {
-		p := filepath.Join(opt.Home, ".claude", name)
-		globalClaude[p] = true
-		res.Findings = append(res.Findings, ioc.ClaudeHooks(p, false)...)
-	}
 	var servers []ioc.MCPServer
-	for path, client := range ioc.MCPConfigPaths(opt.Home) {
-		servers = append(servers, ioc.ReadMCP(path, client)...)
+	if machine {
+		for _, name := range []string{"settings.json", "settings.local.json"} {
+			p := filepath.Join(opt.Home, ".claude", name)
+			globalClaude[p] = true
+			res.Findings = append(res.Findings, ioc.ClaudeHooks(p, false)...)
+		}
+		for path, client := range ioc.MCPConfigPaths(opt.Home) {
+			servers = append(servers, ioc.ReadMCP(path, client)...)
+		}
 	}
 	for _, p := range inv.Configs {
 		dir, base := filepath.Base(filepath.Dir(p)), filepath.Base(p)
@@ -146,10 +153,13 @@ func Run(ctx context.Context, opt Options) *Result {
 		res.Findings = append(res.Findings, ioc.Workflow(w)...)
 	}
 	res.Findings = append(res.Findings, ioc.NodeModulesPayloads(inv.NodeModules)...)
-	res.Findings = append(res.Findings, ioc.TempArtifacts(opt.Home)...)
-	res.Findings = append(res.Findings, ioc.LaunchItems(opt.Home)...)
-	res.Findings = append(res.Findings, ioc.ShellRC(opt.Home)...)
-	res.Credentials = ioc.Credentials(opt.Home)
+	if machine {
+		res.Findings = append(res.Findings, ioc.TempArtifacts(opt.Home)...)
+		res.Findings = append(res.Findings, ioc.LaunchItems(opt.Home)...)
+		res.Findings = append(res.Findings, ioc.ShellRC(opt.Home)...)
+		res.Credentials = ioc.Credentials(opt.Home)
+	}
+	res.ProjectOnly = opt.ProjectOnly
 
 	sort.SliceStable(res.Findings, func(i, j int) bool { return res.Findings[i].Severity > res.Findings[j].Severity })
 	res.Duration = time.Since(start)
