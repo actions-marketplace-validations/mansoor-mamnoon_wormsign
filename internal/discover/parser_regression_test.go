@@ -34,6 +34,27 @@ func TestNPMRegistryAliases(t *testing.T) {
  }
 }
 
+func TestExplicitSymlinkRoot(t *testing.T) {
+ t.Parallel()
+ root := t.TempDir()
+ target := filepath.Join(root, "actual")
+ writeAuditFile(t, target, "requirements.txt", "requests==2.31.0\n")
+ link := filepath.Join(root, "linked")
+ if err := os.Symlink(target, link); err != nil {t.Fatal(err)}
+ inv := Walk(Options{Roots: []string{link, target}})
+ if got := inv.AllPackages(); len(got)!=1 || len(inv.Sources)!=1 {t.Fatalf("packages %v sources %v",got,inv.Sources)}
+ inv = Walk(Options{Roots: []string{link}})
+ if got := inv.AllPackages(); len(got)!=1 {t.Fatalf("symlink root packages %v",got)}
+}
+
+func TestExplicitRootBeyondEarlierDepthLimit(t *testing.T) {
+ t.Parallel()
+ root := t.TempDir()
+ writeAuditFile(t, root, "a/b/requirements.txt", "requests==2.31.0\n")
+ inv := Walk(Options{Roots: []string{root, filepath.Join(root,"a","b")}, MaxDepth:1})
+ if got := inv.AllPackages(); len(got)!=1 {t.Fatalf("explicit root skipped: %v errors %v",got,inv.Errors)}
+}
+
 func TestRequirementsOnlyExactPins(t *testing.T) {
  t.Parallel()
  root := t.TempDir()

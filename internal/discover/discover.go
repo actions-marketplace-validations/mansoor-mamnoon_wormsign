@@ -69,8 +69,15 @@ func Walk(opt Options) *Inventory {
 	inv := &Inventory{}
 	seen := map[string]bool{}
 	for _, root := range opt.Roots {
-		root = filepath.Clean(root)
-		base := strings.Count(root, string(os.PathSeparator))
+		// Resolve explicitly requested roots, but do not follow directory
+		// symlinks encountered during traversal (which may form cycles).
+		resolved, err := filepath.EvalSymlinks(root)
+		if err != nil {
+			inv.Errors = append(inv.Errors, err)
+			continue
+		}
+		root = filepath.Clean(resolved)
+		base := strings.Count(strings.TrimRight(root, string(os.PathSeparator)), string(os.PathSeparator))
 		walkErr := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
 			if err := opt.Context.Err(); err != nil {
 				return err
@@ -96,7 +103,6 @@ func Walk(opt Options) *Inventory {
 				if seen[path] {
 					return fs.SkipDir
 				}
-				seen[path] = true
 				inv.DirsWalked++
 				if opt.Progress != nil {
 					opt.Progress.Add(1)
@@ -105,6 +111,9 @@ func Walk(opt Options) *Inventory {
 					inv.Errors = append(inv.Errors, fmt.Errorf("%s: maximum scan depth %d reached", path, opt.MaxDepth))
 					return fs.SkipDir
 				}
+				// A depth-limited directory was not scanned and can still be
+				// visited when explicitly supplied as a later root.
+				seen[path] = true
 				switch name {
 				case "node_modules":
 					inv.NodeModules = append(inv.NodeModules, path)
