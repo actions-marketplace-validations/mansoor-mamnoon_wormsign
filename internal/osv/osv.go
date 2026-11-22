@@ -59,7 +59,7 @@ type query struct {
 }
 
 type batchResp struct {
-	Results []struct {
+	Results []*struct {
 		Vulns []struct {
 			ID string `json:"id"`
 		} `json:"vulns"`
@@ -153,6 +153,9 @@ func (c *Client) batch(ctx context.Context, ps []pkgs.Package) ([][]string, erro
 		var nextIndexes []int
 		for i, r := range out.Results {
 			index := indexes[i]
+			if r == nil {
+				return res, fmt.Errorf("osv: null result for %s", ps[index].String())
+			}
 			for _, v := range r.Vulns {
 				if !slices.Contains(res[index], v.ID) {
 					res[index] = append(res[index], v.ID)
