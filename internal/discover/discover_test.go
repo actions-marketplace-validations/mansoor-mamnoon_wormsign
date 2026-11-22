@@ -91,3 +91,16 @@ func TestUnreadableDirIsSkippedNotError(t *testing.T) {
 		t.Fatalf("errors %v skipped %v", inv.Errors, inv.Skipped)
 	}
 }
+
+func TestWalkCollectsDevcontainerConfigs(t *testing.T) {
+	root := t.TempDir()
+	for _, rel := range []string{"a/.devcontainer/devcontainer.json", "b/.devcontainer.json", "c/devcontainer.json"} {
+		p := filepath.Join(root, rel)
+		os.MkdirAll(filepath.Dir(p), 0o755)
+		os.WriteFile(p, []byte(`{}`), 0o644)
+	}
+	inv := Walk(Options{Roots: []string{root}})
+	if len(inv.Configs) != 2 {
+		t.Fatalf("want the two dev container configs, got %v", inv.Configs)
+	}
+}

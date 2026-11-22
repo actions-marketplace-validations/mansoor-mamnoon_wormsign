@@ -148,6 +148,8 @@ func (inv *Inventory) file(path, name string) {
 	case parent == ".vscode" && (name == "tasks.json" || name == "mcp.json"),
 		parent == ".claude" && strings.HasPrefix(name, "settings") && strings.HasSuffix(name, ".json"),
 		parent == ".cursor" && name == "mcp.json",
+		parent == ".devcontainer" && name == "devcontainer.json",
+		name == ".devcontainer.json",
 		name == ".mcp.json":
 		inv.Configs = append(inv.Configs, path)
 		return
