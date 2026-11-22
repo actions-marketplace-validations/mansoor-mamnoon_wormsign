@@ -20,6 +20,7 @@ func TestNPMRegistryAliases(t *testing.T) {
  {"v3", `{"packages":{"node_modules/alias":{"name":"real","version":"1.2.3"},"packages/local":{"name":"local","version":"1.0.0"},"node_modules/local":{"link":true,"resolved":"packages/local"}}}`},
  {"v1", `{"dependencies":{"alias":{"version":"npm:real@1.2.3"}}}`},
  {"v1-scoped", `{"dependencies":{"alias":{"version":"npm:@scope/real@1.2.3"}}}`},
+ {"v1-invalid", `{"dependencies":{"alias":{"version":"npm:invalid"},"real":{"version":"1.2.3"}}}`},
  } {
  t.Run(test.name, func(t *testing.T){
  root := t.TempDir()
@@ -58,6 +59,7 @@ func TestExplicitRootBeyondEarlierDepthLimit(t *testing.T) {
 func TestPNPMInstalledTransitivePackages(t *testing.T) {
  t.Parallel()
  root := t.TempDir()
+ writeAuditFile(t, root, "node_modules/.pnpm/lock.yaml", "lockfileVersion: '9.0'\n")
  writeAuditFile(t, root, "node_modules/.pnpm/direct@1.0.0/node_modules/direct/package.json", `{"name":"direct","version":"1.0.0"}`)
  writeAuditFile(t, root, "node_modules/.pnpm/transitive@2.0.0/node_modules/transitive/package.json", `{"name":"transitive","version":"2.0.0"}`)
  if err := os.Symlink(".pnpm/direct@1.0.0/node_modules/direct", filepath.Join(root,"node_modules","direct")); err != nil {t.Fatal(err)}
@@ -81,7 +83,7 @@ func TestRequirementsOnlyExactPins(t *testing.T) {
 func TestTOMLCommentsAndSubtables(t *testing.T) {
  t.Parallel()
  root := t.TempDir()
- writeAuditFile(t, root, "poetry.lock", "[[package]] # dependency\nname = 'Requests' # normalized\nversion = \"2.31.0\" # pin\n[package.source]\nname = 'mirror'\n[[package]]\nname = 'idna'\nversion = '3.6'\n")
+ writeAuditFile(t, root, "poetry.lock", "[[package]] # dependency\nname = 'Requests' # normalized\nversion = \"2.31.0\" # pin\n[package.source]\nname = 'mirror#name' # comment\nurl = \"https://example.test/\\\"quoted#fragment\" # comment\n[[package]]\nname = 'idna'\nversion = '3.6'\n")
  inv := Walk(Options{Roots: []string{root}})
  var got []string
  for _, p := range inv.AllPackages(){got=append(got,p.String())}
