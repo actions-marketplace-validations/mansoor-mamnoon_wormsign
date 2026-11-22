@@ -76,9 +76,9 @@ func Text(w io.Writer, r *scan.Result, s Style, home, version string) {
 	case r.OSVError != "":
 		p("  %s %-15s could not reach OSV.dev: %s\n", warn, "Packages", r.OSVError)
 	case !r.OSVChecked && r.Packages > 0:
-		p("  %s %-15s %s packages found, not checked (--offline)\n", warn, "Packages", commas(r.Packages))
+		p("  %s %-15s %s packages found; OSV lookup skipped (--offline)\n", warn, "Packages", commas(r.Packages))
 	case len(r.Hits) == 0:
-		p("  %s %-15s %s packages in %s lockfiles/installs — none known-malicious\n", ok, "Packages", commas(r.Packages), commas(r.Sources))
+		p("  %s %-15s %s packages in %s lockfiles and installs, none known-malicious\n", ok, "Packages", commas(r.Packages), commas(r.Sources))
 	default:
 		p("  %s %s%-15s %d MALICIOUS%s of %s packages\n", bad, s.red+s.bold, "Packages", len(r.Hits), s.reset, commas(r.Packages))
 		for _, h := range r.Hits {
@@ -90,7 +90,7 @@ func Text(w io.Writer, r *scan.Result, s Style, home, version string) {
 			p("      %s%s%s  %s  %s%s%s\n", s.bold, h.Package.String(), s.reset, a.ID, s.dim, sum, s.reset)
 			for i, loc := range h.Locations {
 				if i == 5 {
-					p("        %s… and %d more%s\n", s.dim, len(h.Locations)-5, s.reset)
+					p("        %s... and %d more%s\n", s.dim, len(h.Locations)-5, s.reset)
 					break
 				}
 				p("        %s\n", tilde(loc))
@@ -138,7 +138,7 @@ func Text(w io.Writer, r *scan.Result, s Style, home, version string) {
 				p("        %s%s%s\n", s.dim, f.Evidence, s.reset)
 			}
 			if f.Fix != "" {
-				p("        → %s\n", f.Fix)
+				p("        fix: %s\n", f.Fix)
 			}
 		}
 		p("\n")
@@ -148,10 +148,10 @@ func Text(w io.Writer, r *scan.Result, s Style, home, version string) {
 	// MCP inventory: injected servers are the newest worm trick, and only a
 	// human knows which ones they installed.
 	if len(r.MCPServers) > 0 {
-		p("\n  %sMCP servers on this machine%s %s— do you recognise every one?%s\n", s.bold, s.reset, s.dim, s.reset)
+		p("\n  %sMCP servers on this machine.%s %sCheck that you installed each one.%s\n", s.bold, s.reset, s.dim, s.reset)
 		for i, m := range r.MCPServers {
 			if i == 15 {
-				p("    %s… and %d more (see --json)%s\n", s.dim, len(r.MCPServers)-15, s.reset)
+				p("    %s... and %d more (see --json)%s\n", s.dim, len(r.MCPServers)-15, s.reset)
 				break
 			}
 			p("    %-15s %-24s %s%s%s\n", m.Client, truncate(m.Name, 24), s.dim, truncate(m.CommandLine(), 60), s.reset)
@@ -165,7 +165,7 @@ func Text(w io.Writer, r *scan.Result, s Style, home, version string) {
 	switch {
 	case r.Critical():
 		p("  %s%sLikely compromised.%s Assume every credential below was stolen.\n", s.red, s.bold, s.reset)
-		p("  Rotate them from a %sdifferent, clean machine%s — the worm may still be watching this one.\n\n", s.bold, s.reset)
+		p("  Rotate them from a %sdifferent machine%s; this one may still be running the payload.\n\n", s.bold, s.reset)
 		for _, c := range r.Credentials {
 			p("    %s•%s %-22s %s%s%s\n", s.red, s.reset, truncate(c.Name, 22), s.dim, c.Rotate, s.reset)
 		}
@@ -181,7 +181,7 @@ func Text(w io.Writer, r *scan.Result, s Style, home, version string) {
 		for _, c := range r.Credentials {
 			names = append(names, strings.SplitN(c.Name, ":", 2)[0])
 		}
-		p("  %sIf this ever changes, you'd need to rotate %d credentials: %s%s\n", s.dim, len(r.Credentials), truncate(strings.Join(names, ", "), 120), s.reset)
+		p("  %sCredentials a worm could steal here (%d): %s%s\n", s.dim, len(r.Credentials), truncate(strings.Join(names, ", "), 120), s.reset)
 	}
 	p("\n  %sScanned %s dirs, %s, %s in %s%s\n\n", s.dim, commas(r.Dirs), count(r.Workflows, "workflow"), count(r.Configs, "config"), r.Duration.Round(100*time.Millisecond), s.reset)
 }
@@ -206,5 +206,5 @@ func truncate(s string, n int) string {
 	if len(r) <= n {
 		return s
 	}
-	return string(r[:n-1]) + "…"
+	return string(r[:n-3]) + "..."
 }
