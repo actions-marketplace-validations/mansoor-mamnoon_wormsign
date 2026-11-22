@@ -31,7 +31,11 @@ type Finding struct {
 	Title    string   `json:"title"`
 	Path     string   `json:"path,omitempty"`
 	Evidence string   `json:"evidence,omitempty"`
-	Fix      string   `json:"fix,omitempty"`
+	// Command is the redacted command line that triggered the finding. It is
+	// shown in the local terminal report only: never in JSON, which ends up
+	// in files and CI artifacts.
+	Command string `json:"-"`
+	Fix     string `json:"fix,omitempty"`
 }
 
 func truncate(s string, n int) string {

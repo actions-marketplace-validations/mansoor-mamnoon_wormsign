@@ -44,6 +44,7 @@ func LaunchItems(home string) []Finding {
 			Check:    "autostart",
 			Title:    fmt.Sprintf("Autostart item %s %s", filepath.Base(f), joinReasons(reasons)),
 			Path:     f,
+			Command:  Redact(cmd),
 			Fix:      "Unload it (launchctl bootout / systemctl --user disable), delete the file, then rotate credentials.",
 		})
 	}
@@ -56,8 +57,9 @@ func LaunchItems(home string) []Finding {
 			if reasons, sev := classify(line); sev != Info {
 				out = append(out, Finding{
 					Severity: sev, Check: "autostart", Path: "crontab",
-					Title: "crontab entry " + joinReasons(reasons),
-					Fix:   "Remove it with `crontab -e` if you didn't add it.",
+					Title:   "crontab entry " + joinReasons(reasons),
+					Command: Redact(line),
+					Fix:     "Remove it with `crontab -e` if you didn't add it.",
 				})
 			}
 		}
@@ -122,9 +124,10 @@ func ShellRC(home string) []Finding {
 			}
 			out = append(out, Finding{
 				Severity: Critical, Check: "shell-rc",
-				Title: fmt.Sprintf("%s line %d %s", name, i+1, joinReasons(reasons)),
-				Path:  path,
-				Fix:   "Delete the line if you didn't add it.",
+				Title:   fmt.Sprintf("%s line %d %s", name, i+1, joinReasons(reasons)),
+				Path:    path,
+				Command: Redact(t),
+				Fix:     "Delete the line if you didn't add it.",
 			})
 		}
 	}

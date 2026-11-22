@@ -48,6 +48,7 @@ func CheckClaudeHooks(path string, projectLevel bool) ([]Finding, error) {
 		events  []string
 		reasons []string
 		n       int
+		command string
 	}
 	var bad, auto agg
 	addUnique := func(list []string, items ...string) []string {
@@ -76,20 +77,23 @@ func CheckClaudeHooks(path string, projectLevel bool) ([]Finding, error) {
 				a.sev = max(a.sev, sev)
 				a.events = addUnique(a.events, event)
 				a.reasons = addUnique(a.reasons, reasons...)
+				if a.command == "" || sev > Warn {
+					a.command = h.Command
+				}
 			}
 		}
 	}
 	var out []Finding
 	if bad.n > 0 {
 		out = append(out, Finding{
-			Severity: bad.sev, Check: "claude-hooks", Path: path,
+			Severity: bad.sev, Check: "claude-hooks", Path: path, Command: Redact(bad.command),
 			Title: fmt.Sprintf("Claude Code %s hook %s", strings.Join(bad.events, "/"), joinReasons(bad.reasons)),
 			Fix:   "If you did not add this hook, delete it and treat this machine's credentials as stolen.",
 		})
 	}
 	if auto.n > 0 {
 		out = append(out, Finding{
-			Severity: Warn, Check: "claude-hooks", Path: path,
+			Severity: Warn, Check: "claude-hooks", Path: path, Command: Redact(auto.command),
 			Title: "Repo-level Claude Code SessionStart hook runs a command every time the repo is opened",
 			Fix:   "Confirm a teammate added this on purpose (git log -- .claude/settings.json).",
 		})
@@ -131,6 +135,7 @@ func CheckVSCodeTasks(path string) ([]Finding, error) {
 			Severity: max(sev, Warn),
 			Check:    "vscode-tasks",
 			Path:     path,
+			Command:  Redact(strings.TrimSpace(cmd)),
 			Fix:      "If you did not add this task, delete it.",
 		}
 		if len(reasons) > 0 {
@@ -311,6 +316,7 @@ func MCPFindings(servers []MCPServer) []Finding {
 			Check:    "mcp",
 			Title:    fmt.Sprintf("%s MCP server %q %s", s.Client, s.Name, joinReasons(reasons)),
 			Path:     s.Path,
+			Command:  Redact(cmd),
 			Fix:      "If you did not install this server, remove it from the config and rotate the secrets it could reach.",
 		})
 	}
