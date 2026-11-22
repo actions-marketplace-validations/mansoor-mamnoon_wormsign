@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/logo.svg" alt="wormsign logo: a segmented worm crossing sand ripples" width="112"></p>
+
 <h1 align="center">wormsign</h1>
 
 <p align="center">Checks a developer machine for npm and PyPI supply-chain worms.</p>
