@@ -1,6 +1,6 @@
 <h1 align="center">wormsign</h1>
 
-<p align="center"><b>Did a supply-chain worm get your machine? One command, ten seconds, every project.</b></p>
+<p align="center">Checks a developer machine for npm and PyPI supply-chain worms.</p>
 
 <p align="center">
   <a href="https://github.com/mansoor-mamnoon/wormsign/actions/workflows/ci.yml"><img src="https://github.com/mansoor-mamnoon/wormsign/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
@@ -11,116 +11,132 @@
 
 <p align="center"><img src="docs/demo.svg" alt="wormsign --demo output" width="820"></p>
 
-Shai-Hulud. Mini Shai-Hulud. SANDWORM_MODE. ChainDrop. Every few weeks another npm worm
-steals tokens, republishes itself into hundreds of packages, and the advice is always the same:
-*"check whether you installed an affected version."*
+Since September 2025, self-spreading worms (Shai-Hulud, Mini Shai-Hulud, SANDWORM_MODE,
+ChainDrop) have stolen npm and GitHub tokens and republished themselves into hundreds of
+packages. ChainDrop alone infected over 400 packages in four hours in August 2026. After each
+outbreak, developers are told to check whether they installed an affected version.
 
-Across **every** project on your laptop? Plus global installs, the npx cache your MCP servers run
-from, and the Claude Code hooks and VS Code tasks the worm plants so it can come back?
-
-```sh
-wormsign
-```
-
-That's it. It scans your whole home directory and tells you.
+`wormsign` does that check for every project in your home directory in one command. It reads
+every lockfile and installed package tree, compares each version with the OSV.dev malware feed,
+and looks for the hooks, tasks and services these worms install to run again later. A scan of
+29,000 directories and 235 lockfiles takes about 12 seconds on a laptop.
 
 ## Install
 
 ```sh
-# Homebrew (macOS / Linux)
 brew install mansoor-mamnoon/tap/wormsign
+```
 
-# or a checksum-verified binary (read the script first, it's short)
+Or download the release binary. The script verifies its SHA-256 checksum; it is under 60 lines.
+
+```sh
 curl -fsSL https://raw.githubusercontent.com/mansoor-mamnoon/wormsign/main/install.sh | sh
+```
 
-# or with Go
+Or build it with Go 1.22 or later:
+
+```sh
 go install github.com/mansoor-mamnoon/wormsign@latest
 ```
 
-Windows: grab the zip from [Releases](https://github.com/mansoor-mamnoon/wormsign/releases).
+Windows builds are on the [releases page](https://github.com/mansoor-mamnoon/wormsign/releases).
 
-**Not on npm, on purpose.** You shouldn't have to `npm install` something to find out whether
-`npm install` got you. wormsign is one static Go binary with zero dependencies.
+wormsign is not published to npm. A tool that checks for npm compromise should not need
+`npm install` to run. It is one static Go binary with no dependencies.
 
-Want to see what a hit looks like first? `wormsign --demo` scans a harmless fake infected project.
+## Usage
 
-## What it checks
+```sh
+wormsign            # scan your home directory
+wormsign --demo     # scan a harmless fake infected project to see a detection
+wormsign ~/code     # scan one directory, plus machine-wide checks
+```
 
-| | What | Why |
+Exit status is 0 when nothing critical is found, 1 when something is, and 2 on an error,
+including when OSV.dev cannot be reached.
+
+## Checks
+
+| Check | What it reads | Why |
 |---|---|---|
-| 📦 | **Every lockfile and install on disk.** npm, yarn (classic + berry), pnpm (v5–v9), bun, pip/requirements, poetry, uv, pdm, Pipfile, `node_modules`, `site-packages`, global npm/pnpm/bun, **the npx cache**, pipx/uv tools | Matched against [OSV.dev](https://osv.dev)'s live malicious-package feed (`MAL-*`, including GitHub malware advisories). New campaigns show up there within hours, with no hardcoded list for anyone to maintain. |
-| 🤖 | **Coding-agent persistence.** Claude Code `SessionStart` and other hooks, MCP servers across Claude Code/Desktop, Cursor, VS Code, Windsurf, Codex, Gemini CLI, Zed, Kiro and more | Recent worms add a hook or inject an MCP server so they re-run every time you open your agent. |
-| 🧩 | **Editor auto-run tasks.** `.vscode/tasks.json` with `runOn: folderOpen` | Opening the repo silently re-runs the payload. |
-| ⚙️ | **Backdoored GitHub workflows.** `toJSON(secrets)` dumps, discussion-body injection on self-hosted runners, the `SHA1HULUD` runner | How the worms persist in your repos and steal org secrets. |
-| 🚀 | **Autostart.** macOS LaunchAgents, systemd user units, XDG autostart, crontab, shell rc files | Token-stealers that survive `rm -rf node_modules`. |
-| 🪱 | **Dropped payload files.** `setup_bun.js`, `bun_environment.js`, TruffleHog caches, staging dirs | Direct evidence the payload ran. |
-| 🔑 | **What you'd have to rotate.** npm, GitHub CLI, AWS, GCP, Azure, Docker, kube, PyPI, SSH keys, Claude/Codex logins, secret-looking env vars | If something is critical, you get a rotation checklist for *this* machine. |
+| Packages | Lockfiles from npm, yarn 1 and 2+, pnpm 5 to 9, bun, pip, poetry, uv, pdm and pipenv; `node_modules` and `site-packages`; global npm, pnpm and bun installs; the npx cache; pipx and uv tools | Each version is looked up in the [OSV.dev](https://osv.dev) malicious-package feed (`MAL-*` ids, which include GitHub malware advisories). New campaigns appear there within hours, so wormsign carries no package list of its own. |
+| Coding agents | Claude Code hooks; MCP server configs for Claude Code, Claude Desktop, Cursor, VS Code, Windsurf, Codex, Gemini CLI, Zed, Kiro and others | Recent worms add a `SessionStart` hook or an MCP server so their payload runs each time the agent starts. |
+| Editors | `.vscode/tasks.json` tasks with `runOn: folderOpen` | Opening the folder runs the task. |
+| CI workflows | `.github/workflows/*` | Worms commit workflows that dump `toJSON(secrets)` or run discussion text on a self-hosted runner. |
+| Autostart | macOS LaunchAgents, systemd user units, XDG autostart, crontab, shell rc files | ChainDrop installs a `gh-token-monitor` service that keeps stealing tokens after the package is removed. |
+| Payload files | `setup_bun.js`, `bun_environment.js`, TruffleHog caches, staging directories | Their presence means the payload ran. |
+| Credentials | npm, GitHub CLI, AWS, GCP, Azure, Docker, Kubernetes, PyPI, Cargo, SSH keys, Claude Code and Codex logins, secret-named environment variables | When a finding is critical, the report lists the credentials on this machine to rotate and how. |
 
-The persistence checks look at **behaviour** (piping downloads into shells, inline `node -e`,
-reading `.npmrc`, posting to webhook sites, running from temp dirs), not just one campaign's file
-hashes, so they keep working when the next worm renames its files.
+The agent, editor and autostart checks match behavior: piping a download into a shell, inline
+`node -e`, reading `.npmrc`, posting to webhook services, running from a temp directory. A
+worm that renames its files still trips them. One known worm file or C2 domain makes a finding
+critical. A single generic behavior, such as `curl | sh` in a task, is a warning; two together
+are critical.
 
-## What leaves your machine
+## Data sent over the network
 
-Only `(ecosystem, package name, version)` tuples, sent to `api.osv.dev` (Google's open
-vulnerability database), the same thing `osv-scanner` sends. No paths, no file contents, no
-telemetry. Credentials are detected by file presence; **values are never read into the output**.
+wormsign sends `(ecosystem, package name, version)` triples to `api.osv.dev`, the same request
+`osv-scanner` makes. It sends no paths, file contents or telemetry. Credentials are detected
+by file presence and key names; their values never appear in the output.
 
-`wormsign --offline` runs every local check with no network at all.
+`wormsign --offline` runs every local check and makes no network requests.
 
-## Use it in CI
+## CI
 
-Fail a PR that pins a known-malicious version or adds worm persistence to the repo:
+The GitHub Action fails a build when a lockfile pins a known-malicious version or the
+repository contains worm persistence:
 
 ```yaml
 - uses: actions/checkout@v4
 - uses: mansoor-mamnoon/wormsign@v0
   # with:
   #   path: .
-  #   args: --strict   # also fail on warnings
+  #   args: --strict   # fail on warnings too
 ```
 
-Locally, `wormsign --project .` does the same: it scans just that directory and skips machine-wide checks.
+`wormsign --project .` runs the same scan locally. It reads only the given directory and
+skips global installs, user-level agent configs, autostart entries and the credential list.
 
 ## Flags
 
 ```
-wormsign [flags] [path ...]     # default path: your home directory
+wormsign [flags] [path ...]     default path: your home directory
 
   --demo        scan a harmless fake infected project
-  --project     only the given paths; skip machine-wide checks (CI)
-  --offline     no network; skip the OSV lookup
-  --json        machine-readable output
-  --strict      exit 1 on warnings, not just critical findings
-  --all-vulns   also report ordinary CVEs (off by default: this is a malware tool)
+  --project     scan only the given paths; skip machine-wide checks
+  --offline     skip the OSV.dev lookup
+  --json        print results as JSON
+  --strict      exit 1 on warnings too
+  --all-vulns   also report ordinary CVEs (off by default)
   --no-globals  skip global installs and the npx cache
 ```
 
-Exit status: `0` clean · `1` critical finding · `2` error.
+## Comparison with other tools
 
-## FAQ
+`npm audit` checks the npm tree of the project you run it in. wormsign checks every project on
+the machine, covers PyPI, and reads global installs and the npx cache. It also finds hooks,
+tasks and services that remain after the bad package is upgraded.
 
-**Why not `npm audit`?** It checks one project's npm tree, and only when you run it there.
-wormsign checks every project on the machine across npm and PyPI, plus global installs, the npx
-cache, and the persistence the worm leaves behind after you've already upgraded the bad package.
+osv-scanner, Socket and Snyk keep bad packages out of a project before and during install.
+wormsign is for the day a worm is announced: it tells you whether this machine was hit and
+which credentials to rotate.
 
-**Why not osv-scanner / Socket / Snyk?** Use them! They're great at keeping bad packages
-*out* of a project. wormsign answers a different question: *"a worm was just announced, was this
-laptop hit, and what do I rotate?"*
+## False positives
 
-**It flagged something I added on purpose.** Warnings are "a human should glance at this," not
-accusations. A repo-level `SessionStart` hook is legitimate sometimes, and it's also exactly what a
-worm adds. Criticals need a known-malicious package, a known worm artifact, or several
-independent suspicious behaviours together.
+A warning asks a person to look. A repo-level `SessionStart` hook can be legitimate, and it is
+also the hook a worm adds. A finding is critical only with a known-malicious package version, a
+known worm file, or two independent suspicious behaviors in the same command.
 
-**Something's missing or a check is wrong.** Please open an issue, especially with a new
-campaign's indicators.
+Please report false positives, misses and new campaign indicators in
+[issues](https://github.com/mansoor-mamnoon/wormsign/issues).
 
 ## Limitations
 
-- Bun's binary `bun.lockb` isn't parsed (the text `bun.lock`, Bun's default since 1.2, is).
-- Heuristics can miss a novel, careful attacker. A clean result means "no known signs," not a guarantee.
-- It's a triage tool, not EDR. If it says you're compromised, rotate from a different machine.
+- Bun's binary `bun.lockb` is not parsed. The text `bun.lock`, Bun's default since 1.2, is.
+- The behavior checks can miss an attacker who avoids every pattern above. A clean result
+  means no known indicators were found.
+- wormsign is a triage tool. It does not monitor the machine. If it reports a compromise,
+  rotate credentials from a different machine.
 
 ## License
 
