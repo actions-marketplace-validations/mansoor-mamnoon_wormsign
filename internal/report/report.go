@@ -54,7 +54,7 @@ var groups = []struct {
 	checks []string
 }{
 	{"coding agents", []string{"claude-hooks", "mcp"}},
-	{"editor tasks", []string{"vscode-tasks"}},
+	{"editor and dev container tasks", []string{"vscode-tasks", "devcontainer"}},
 	{"CI workflows", []string{"workflows"}},
 	{"autostart", []string{"autostart", "shell-rc"}},
 	{"payload files", []string{"payload-files", "worm-artifacts"}},

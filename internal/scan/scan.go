@@ -190,6 +190,9 @@ func Run(ctx context.Context, opt Options) *Result {
 		case dir == ".vscode" && base == "tasks.json":
 			findings, err := ioc.CheckVSCodeTasks(p)
 			res.addConfigFindings(p, findings, err, false)
+		case base == "devcontainer.json" || base == ".devcontainer.json":
+			findings, err := ioc.CheckDevcontainer(p)
+			res.addConfigFindings(p, findings, err, false)
 		case base == ".mcp.json" || base == "mcp.json":
 			found, err := ioc.CheckMCP(p, mcpOwner(p, opt.Home))
 			res.addConfigFindings(p, nil, err, false)
