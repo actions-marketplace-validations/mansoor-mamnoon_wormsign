@@ -101,7 +101,7 @@ func main() {
 	defer cancel()
 
 	var progress atomic.Int64
-	stopSpinner := spinner(&progress, !*jsonOut && report.ColorEnabled(os.Stderr))
+	stopSpinner := spinner(&progress, !*jsonOut && !*noColor && report.ColorEnabled(os.Stderr))
 	opts.Progress = &progress
 	res := scan.Run(ctx, opts)
 	stopSpinner()

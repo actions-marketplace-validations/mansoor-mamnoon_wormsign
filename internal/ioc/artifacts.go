@@ -6,8 +6,8 @@ import (
 	"strings"
 )
 
-// payloadFiles are filenames worms drop into the root of an infected
-// package. They have no legitimate reason to exist there.
+// payloadFiles are filenames associated with known worm campaigns.
+// A name match alone does not establish that the file executed.
 var payloadFiles = map[string]string{
 	"setup_bun.js":        "Shai-Hulud-family worm loader",
 	"bun_environment.js":  "Shai-Hulud-family worm payload",

@@ -31,18 +31,14 @@ func Workflow(path string) []Finding {
 		}
 	}
 	var out []Finding
-	if m := wfKnownNames.FindString(name + "\n" + text); m != "" {
-		out = append(out, f(Critical, "Workflow matches a known worm campaign ("+m+")", name))
+	if m := wfKnownNames.FindString(name); m != "" {
+		out = append(out, f(Warn, "Workflow filename references a worm campaign ("+m+")", name))
 	}
 	if strings.Contains(text, "SHA1HULUD") {
 		out = append(out, f(Critical, "Workflow targets the SHA1HULUD self-hosted runner used by Shai-Hulud 2.0", "runs-on: SHA1HULUD"))
 	}
 	if wfSecretsDump.MatchString(text) {
-		sev := Warn
-		if strings.Contains(text, "curl") || strings.Contains(text, "wget") || strings.Contains(text, "upload-artifact") || strings.Contains(text, "webhook") {
-			sev = Critical
-		}
-		out = append(out, f(sev, "Workflow serializes every secret with toJSON(secrets)", wfSecretsDump.FindString(text)))
+		out = append(out, f(Warn, "Workflow serializes every secret with toJSON(secrets)", wfSecretsDump.FindString(text)))
 	}
 	for _, m := range wfRunLine.FindAllStringSubmatchIndex(text, -1) {
 		// Look at the run block (this line + following indented lines).

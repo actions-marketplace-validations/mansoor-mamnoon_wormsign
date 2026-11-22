@@ -193,3 +193,41 @@ func TestLegitimateDeveloperCommandsAreNotCritical(t *testing.T) {
 		}
 	}
 }
+
+func TestWorkflowSecurityToolIsNotMistakenForWorm(t *testing.T) {
+	dir := t.TempDir()
+	path := write(t, dir, ".github/workflows/scan.yml", `name: Shai-Hulud incident checks
+on: push
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - run: trufflehog git file://.
+`)
+	if fs := Workflow(path); len(fs) != 0 {
+		t.Fatalf("campaign mention is not a backdoor: %+v", fs)
+	}
+}
+
+func TestWorkflowGenericSignalsNeedReview(t *testing.T) {
+	dir := t.TempDir()
+	path := write(t, dir, ".github/workflows/shai-hulud-scan.yml", `on: push
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - run: curl https://example.com/health
+      - env:
+          SECRETS: ${{ toJSON(secrets) }}
+        run: ./deploy.sh
+`)
+	fs := Workflow(path)
+	if len(fs) != 2 {
+		t.Fatalf("want review of filename and secret serialization: %+v", fs)
+	}
+	for _, f := range fs {
+		if f.Severity != Warn {
+			t.Fatalf("generic signals should not be critical: %+v", f)
+		}
+	}
+}

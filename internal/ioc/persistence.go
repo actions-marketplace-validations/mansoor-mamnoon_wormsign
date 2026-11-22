@@ -32,8 +32,7 @@ func LaunchItems(home string) []Finding {
 		text := string(data)
 		cmd := launchCommand(text)
 		reasons, sev := classify(filepath.Base(f) + " " + cmd)
-		// A runtime launching a script out of a hidden dir is how JS/Python
-		// worms persist; legitimate agents ship as signed app binaries.
+		// Hidden scripts merit review but are also used by developer tools.
 		if sev == Info && hiddenScript.MatchString(cmd) {
 			reasons, sev = []string{"runs a script from a hidden directory with node/bun/python"}, Warn
 		}
@@ -118,7 +117,7 @@ func ShellRC(home string) []Finding {
 			// Only strong indicators: rc files are full of legitimate
 			// curl/eval lines (nvm, brew shellenv, starship, ...).
 			reasons, sev := classify(t)
-			if sev != Critical || !hasStrong(t) {
+			if sev != Critical {
 				continue
 			}
 			out = append(out, Finding{
@@ -130,13 +129,4 @@ func ShellRC(home string) []Finding {
 		}
 	}
 	return out
-}
-
-func hasStrong(s string) bool {
-	for _, r := range suspiciousRules {
-		if r.strong && r.re.MatchString(s) {
-			return true
-		}
-	}
-	return false
 }
