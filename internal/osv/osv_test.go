@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/mansoor-mamnoon/wormsign/internal/pkgs"
 )
@@ -67,5 +68,88 @@ func TestCheckReportsOnlyMalware(t *testing.T) {
 func TestIsMalicious(t *testing.T) {
 	if !IsMalicious("GHSA-x", []string{"MAL-2025-1"}) || IsMalicious("GHSA-x", nil) || !IsMalicious("MAL-1", nil) {
 		t.Fatal("IsMalicious wrong")
+	}
+}
+
+func TestMalwareAliasOnLaterPage(t *testing.T) {
+	var calls int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/v1/querybatch":
+			calls++
+			var req struct {
+				Queries []query `json:"queries"`
+			}
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				t.Error(err)
+				return
+			}
+			if calls == 1 {
+				w.Write([]byte(`{"results":[{}, {"next_page_token":"more"}]}`))
+			} else {
+				if len(req.Queries) != 1 || req.Queries[0].PageToken != "more" || req.Queries[0].Package.Name != "bad" {
+					t.Errorf("wrong next page query: %+v", req.Queries)
+				}
+				w.Write([]byte(`{"results":[{"vulns":[{"id":"GHSA-malware"}]}]}`))
+			}
+		case "/v1/vulns/GHSA-malware":
+			w.Write([]byte(`{"id":"GHSA-malware","aliases":["MAL-2026-test"],"summary":"malware"}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	c := New()
+	c.BaseURL = srv.URL
+	hits, err := c.Check(context.Background(), []pkgs.Package{{Ecosystem: pkgs.NPM, Name: "good", Version: "1.0.0"}, {Ecosystem: pkgs.NPM, Name: "bad", Version: "1.0.0"}})
+	if err != nil || len(hits) != 1 || hits[0].Package.Name != "bad" || !hits[0].Advisories[0].Malicious {
+		t.Fatalf("lost paginated malware alias: hits=%+v err=%v", hits, err)
+	}
+}
+
+func TestAdvisoryFailurePreservesKnownMalware(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v1/querybatch" {
+			w.Write([]byte(`{"results":[{"vulns":[{"id":"MAL-test"},{"id":"GHSA-unknown"}]}]}`))
+		} else {
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+	c := New()
+	c.BaseURL = srv.URL
+	hits, err := c.Check(context.Background(), []pkgs.Package{{Ecosystem: pkgs.NPM, Name: "bad", Version: "1.0.0"}})
+	if err == nil || len(hits) != 1 || !hits[0].Advisories[0].Malicious {
+		t.Fatalf("want malware plus incomplete lookup: hits=%+v err=%v", hits, err)
+	}
+}
+
+func TestRepeatedPageTokenFails(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte(`{"results":[{"next_page_token":"stuck"}]}`))
+	}))
+	defer srv.Close()
+	c := New()
+	c.BaseURL = srv.URL
+	if _, err := c.Check(context.Background(), []pkgs.Package{{Ecosystem: pkgs.NPM, Name: "pkg", Version: "1.0.0"}}); err == nil {
+		t.Fatal("repeated pagination token must fail")
+	}
+}
+
+func TestCanceledRequestDoesNotRetry(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		cancel()
+		w.WriteHeader(http.StatusServiceUnavailable)
+	}))
+	defer srv.Close()
+	c := New()
+	c.BaseURL = srv.URL
+	start := time.Now()
+	if _, err := c.Check(ctx, []pkgs.Package{{Ecosystem: pkgs.NPM, Name: "pkg", Version: "1.0.0"}}); err == nil {
+		t.Fatal("canceled request should fail")
+	}
+	if time.Since(start) > time.Second {
+		t.Fatal("canceled request waited for retry backoff")
 	}
 }

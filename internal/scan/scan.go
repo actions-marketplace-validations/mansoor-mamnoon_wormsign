@@ -135,11 +135,11 @@ func Run(ctx context.Context, opt Options) *Result {
 		}
 		c.IncludeVulns = opt.IncludeVulns
 		hits, err := c.Check(ctx, all)
+		res.Hits = locate(hits, inv.Sources)
 		if err != nil {
 			res.OSVError = err.Error()
 		} else {
 			res.OSVChecked = true
-			res.Hits = locate(hits, inv.Sources)
 		}
 	}
 

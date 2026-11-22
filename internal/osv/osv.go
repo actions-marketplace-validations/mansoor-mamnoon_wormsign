@@ -1,14 +1,13 @@
 // Package osv checks packages against OSV.dev's malicious-package feed.
 //
-// OSV aggregates the OpenSSF malicious-packages dataset (MAL-* ids) and
-// GitHub's malware advisories, so a single batch query covers every known
-// campaign (Shai-Hulud, ChainDrop, typosquats) without a hardcoded list.
+// OSV supplies advisory IDs in batches; detail records identify malware aliases.
 package osv
 
 import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"strings"
@@ -53,7 +52,8 @@ type query struct {
 		Name      string `json:"name"`
 		Ecosystem string `json:"ecosystem"`
 	} `json:"package"`
-	Version string `json:"version"`
+	Version   string `json:"version"`
+	PageToken string `json:"page_token,omitempty"`
 }
 
 type batchResp struct {
@@ -96,12 +96,10 @@ func (c *Client) Check(ctx context.Context, ps []pkgs.Package) ([]Hit, error) {
 	need := map[string]bool{}
 	for _, list := range ids {
 		for _, id := range list {
-			if c.IncludeVulns || strings.HasPrefix(id, "MAL-") {
-				need[id] = true
-			}
+			need[id] = true
 		}
 	}
-	details := c.fetchAll(ctx, need)
+	details, detailErr := c.fetchAll(ctx, need)
 
 	var hits []Hit
 	for i, list := range ids {
@@ -122,7 +120,7 @@ func (c *Client) Check(ctx context.Context, ps []pkgs.Package) ([]Hit, error) {
 			hits = append(hits, Hit{Package: ps[i], Advisories: advs})
 		}
 	}
-	return hits, nil
+	return hits, detailErr
 }
 
 func (c *Client) batch(ctx context.Context, ps []pkgs.Package) ([][]string, error) {
@@ -132,26 +130,49 @@ func (c *Client) batch(ctx context.Context, ps []pkgs.Package) ([][]string, erro
 		qs[i].Package.Ecosystem = p.Ecosystem
 		qs[i].Version = p.Version
 	}
-	body, _ := json.Marshal(map[string]any{"queries": qs})
-	var out batchResp
-	if err := c.post(ctx, "/v1/querybatch", body, &out); err != nil {
-		return nil, err
-	}
-	if len(out.Results) != len(ps) {
-		return nil, fmt.Errorf("osv: expected %d results, got %d", len(ps), len(out.Results))
-	}
 	res := make([][]string, len(ps))
-	for i, r := range out.Results {
-		for _, v := range r.Vulns {
-			res[i] = append(res[i], v.ID)
+	indexes := make([]int, len(ps))
+	for i := range indexes {
+		indexes[i] = i
+	}
+	seenTokens := make([]map[string]bool, len(ps))
+	for len(qs) > 0 {
+		body, _ := json.Marshal(map[string]any{"queries": qs})
+		var out batchResp
+		if err := c.post(ctx, "/v1/querybatch", body, &out); err != nil {
+			return nil, err
 		}
-		// Paged results are only returned for packages with >1000 vulns;
-		// malware entries are never that numerous, so we don't follow them.
+		if len(out.Results) != len(qs) {
+			return nil, fmt.Errorf("osv: expected %d results, got %d", len(qs), len(out.Results))
+		}
+		var next []query
+		var nextIndexes []int
+		for i, r := range out.Results {
+			index := indexes[i]
+			for _, v := range r.Vulns {
+				res[index] = append(res[index], v.ID)
+			}
+			if token := r.NextPageToken; token != "" {
+				if seenTokens[index] == nil {
+					seenTokens[index] = map[string]bool{}
+				}
+				if seenTokens[index][token] {
+					return nil, fmt.Errorf("osv: repeated page token for %s", ps[index].String())
+				}
+				seenTokens[index][token] = true
+				q := qs[i]
+				q.PageToken = token
+				next = append(next, q)
+				nextIndexes = append(nextIndexes, index)
+			}
+		}
+		qs, indexes = next, nextIndexes
 	}
 	return res, nil
 }
 
-func (c *Client) fetchAll(ctx context.Context, ids map[string]bool) map[string]Advisory {
+func (c *Client) fetchAll(ctx context.Context, ids map[string]bool) (map[string]Advisory, error) {
+	var errs []error
 	out := map[string]Advisory{}
 	var mu sync.Mutex
 	sem := make(chan struct{}, 8)
@@ -164,6 +185,9 @@ func (c *Client) fetchAll(ctx context.Context, ids map[string]bool) map[string]A
 			defer func() { <-sem }()
 			var a Advisory
 			if err := c.get(ctx, "/v1/vulns/"+id, &a); err != nil {
+				mu.Lock()
+				errs = append(errs, fmt.Errorf("osv: advisory %s: %w", id, err))
+				mu.Unlock()
 				return
 			}
 			a.Malicious = IsMalicious(a.ID, a.Aliases)
@@ -173,7 +197,7 @@ func (c *Client) fetchAll(ctx context.Context, ids map[string]bool) map[string]A
 		}(id)
 	}
 	wg.Wait()
-	return out
+	return out, errors.Join(errs...)
 }
 
 func (c *Client) post(ctx context.Context, path string, body []byte, v any) error {
@@ -197,8 +221,15 @@ func (c *Client) do(req *http.Request, v any) error {
 	req.Header.Set("User-Agent", "wormsign")
 	var lastErr error
 	for attempt := 0; attempt < 3; attempt++ {
+		if err := req.Context().Err(); err != nil {
+			return err
+		}
 		if attempt > 0 {
-			time.Sleep(time.Duration(attempt) * time.Second)
+			select {
+			case <-req.Context().Done():
+				return req.Context().Err()
+			case <-time.After(time.Duration(attempt) * time.Second):
+			}
 			if req.GetBody != nil {
 				req.Body, _ = req.GetBody()
 			}
