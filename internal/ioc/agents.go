@@ -82,7 +82,7 @@ func ClaudeHooks(path string, projectLevel bool) []Finding {
 		out = append(out, Finding{
 			Severity: bad.sev, Check: "claude-hooks", Path: path, Evidence: bad.evidence,
 			Title: fmt.Sprintf("Claude Code %s hook %s", strings.Join(bad.events, "/"), joinReasons(bad.reasons)),
-			Fix:   "Not yours? Delete the hook and treat this machine's credentials as stolen.",
+			Fix:   "If you did not add this hook, delete it and treat this machine's credentials as stolen.",
 		})
 	}
 	if auto.n > 0 {
@@ -124,7 +124,7 @@ func VSCodeTasks(path string) []Finding {
 			Check:    "vscode-tasks",
 			Path:     path,
 			Evidence: truncate(strings.TrimSpace(cmd), 200),
-			Fix:      "Not yours? Delete the task.",
+			Fix:      "If you did not add this task, delete it.",
 		}
 		if len(reasons) > 0 {
 			f.Title = fmt.Sprintf("VS Code task %q runs on folder open and %s", t.Label, joinReasons(reasons))
@@ -299,7 +299,7 @@ func MCPFindings(servers []MCPServer) []Finding {
 			Title:    fmt.Sprintf("%s MCP server %q %s", s.Client, s.Name, joinReasons(reasons)),
 			Path:     s.Path,
 			Evidence: truncate(cmd, 200),
-			Fix:      "If you don't recognise this server, remove it from the config and rotate the secrets it could reach.",
+			Fix:      "If you did not install this server, remove it from the config and rotate the secrets it could reach.",
 		})
 	}
 	return out

@@ -23,7 +23,7 @@ type credCheck struct {
 }
 
 var credChecks = []credCheck{
-	{"npm token", ".npmrc", "npm token revoke <id> (npmjs.com → Access Tokens), then `npm login`", regexp.MustCompile(`_authToken|_auth\s*=`)},
+	{"npm token", ".npmrc", "npm token revoke <id> (npmjs.com, Access Tokens page), then `npm login`", regexp.MustCompile(`_authToken|_auth\s*=`)},
 	{"GitHub CLI token", ".config/gh/hosts.yml", "`gh auth refresh` or revoke at github.com/settings/applications", regexp.MustCompile(`oauth_token`)},
 	{"git credential store", ".git-credentials", "Revoke the PATs at github.com/settings/tokens and delete the file", nil},
 	{"AWS keys", ".aws/credentials", "Deactivate the access keys in IAM and issue new ones", regexp.MustCompile(`aws_secret_access_key`)},

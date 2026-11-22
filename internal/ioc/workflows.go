@@ -27,7 +27,7 @@ func Workflow(path string) []Finding {
 	f := func(sev Severity, title, evidence string) Finding {
 		return Finding{
 			Severity: sev, Check: "workflows", Title: title, Path: path, Evidence: truncate(evidence, 200),
-			Fix: "Not yours? Delete it and rotate every repo and org secret.",
+			Fix: "If you did not write this workflow, delete it and rotate every repo and org secret.",
 		}
 	}
 	var out []Finding
@@ -42,7 +42,7 @@ func Workflow(path string) []Finding {
 		if strings.Contains(text, "curl") || strings.Contains(text, "wget") || strings.Contains(text, "upload-artifact") || strings.Contains(text, "webhook") {
 			sev = Critical
 		}
-		out = append(out, f(sev, "Workflow serialises every secret with toJSON(secrets)", wfSecretsDump.FindString(text)))
+		out = append(out, f(sev, "Workflow serializes every secret with toJSON(secrets)", wfSecretsDump.FindString(text)))
 	}
 	for _, m := range wfRunLine.FindAllStringSubmatchIndex(text, -1) {
 		// Look at the run block (this line + following indented lines).

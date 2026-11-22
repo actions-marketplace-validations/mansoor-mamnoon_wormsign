@@ -5,10 +5,9 @@ import (
 	"strings"
 )
 
-// Indicator patterns seen across 2025–2026 npm/PyPI worms (Shai-Hulud,
-// Mini Shai-Hulud, SANDWORM_MODE, ChainDrop, s1ngularity). They are
-// deliberately behaviour-shaped rather than hash-shaped, so they keep working
-// when the next campaign renames its files.
+// Indicator patterns seen across 2025 and 2026 npm/PyPI worms (Shai-Hulud,
+// Mini Shai-Hulud, SANDWORM_MODE, ChainDrop, s1ngularity). They match
+// behavior, so they keep working when the next campaign renames its files.
 var suspiciousRules = []struct {
 	re     *regexp.Regexp
 	reason string
@@ -23,7 +22,7 @@ var suspiciousRules = []struct {
 	{regexp.MustCompile(`(?i)(^|[\s"'=])(/tmp/|/var/tmp/|/dev/shm/|\$TMPDIR|%TEMP%|/private/var/folders/)`), "runs something from a temp directory", false},
 	{regexp.MustCompile(`(?i)\bnohup\b|\bdisown\b|\bsetsid\b|start-process.*-windowstyle\s+hidden`), "starts a hidden background process", false},
 	{regexp.MustCompile(`(?i)\bgh\s+auth\s+token\b|\bnpm\s+token\b|_authToken|\.npmrc|\.git-credentials|\.aws/credentials|id_rsa|id_ed25519`), "reads credentials", false},
-	{regexp.MustCompile(`(?i)\btrufflehog\b|truffler|truffleSecrets`), "runs a secret scanner (classic worm behaviour)", true},
+	{regexp.MustCompile(`(?i)\btrufflehog\b|truffler|truffleSecrets`), "runs a secret scanner (common worm behavior)", true},
 	{regexp.MustCompile(`(?i)setup_bun\.js|bun_environment\.js|bun-dl-|tmp\.dpkg\.lock|gh-token-monitor`), "references a known worm file", true},
 	{regexp.MustCompile(`(?i)webhook\.site|pipedream\.net|requestbin|ngrok(-free)?\.(io|app)|trycloudflare\.com|discord(app)?\.com/api/webhooks|api\.telegram\.org/bot|transfer\.sh|paste(bin)?\.(com|ee)`), "talks to a known exfiltration endpoint", true},
 	{regexp.MustCompile(`(?i)npm-cache\.com|pypi-get\.com|js-mirror\.com`), "talks to a known worm C2 domain", true},
