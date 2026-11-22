@@ -55,7 +55,9 @@ type Result struct {
 	ProjectOnly bool             `json:"project_only"`
 	OSVError    string           `json:"osv_error,omitempty"`
 	ScanErrors  []string         `json:"scan_errors,omitempty"`
-	ParseErrors []string         `json:"parse_errors,omitempty"`
+	// Skipped lists directories not read (depth limit, no permission).
+	Skipped     []string `json:"skipped_dirs,omitempty"`
+	ParseErrors []string `json:"parse_errors,omitempty"`
 }
 
 // Malicious distinguishes malware from ordinary vulnerability advisories.
@@ -128,7 +130,7 @@ func Run(ctx context.Context, opt Options) *Result {
 	inv.ScanProjectNodeModules()
 
 	res := &Result{Roots: opt.Roots, Dirs: inv.DirsWalked, Sources: len(inv.Sources),
-		Workflows: len(inv.Workflows), Configs: len(inv.Configs)}
+		Workflows: len(inv.Workflows), Configs: len(inv.Configs), Skipped: inv.Skipped}
 	for _, e := range inv.Errors {
 		if pe, ok := e.(*discover.ParseError); ok {
 			res.ParseErrors = append(res.ParseErrors, pe.Error())
