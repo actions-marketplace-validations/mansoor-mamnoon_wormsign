@@ -28,7 +28,10 @@ type Options struct {
 	// agent configs, autostart entries or credential inventory. For CI.
 	ProjectOnly bool
 	Progress    *atomic.Int64
-	OSV         *osv.Client
+	// Stage, when set, holds a short description of the current phase for
+	// a progress display.
+	Stage *atomic.Value
+	OSV   *osv.Client
 }
 
 // MalHit is a malicious package and everywhere it was found.
@@ -146,6 +149,7 @@ func Run(ctx context.Context, opt Options) *Result {
 	res.Packages = len(all)
 
 	if !opt.Offline && len(all) > 0 {
+		opt.setStage(fmt.Sprintf("checking %d packages against OSV.dev", len(all)))
 		c := opt.OSV
 		if c == nil {
 			c = osv.New()
@@ -161,6 +165,7 @@ func Run(ctx context.Context, opt Options) *Result {
 	}
 
 	// Coding agents and editors.
+	opt.setStage("checking agent configs, workflows and autostart")
 	globalClaude := map[string]bool{}
 	var servers []ioc.MCPServer
 	if machine {
@@ -214,6 +219,12 @@ func Run(ctx context.Context, opt Options) *Result {
 	}
 	res.Duration = time.Since(start)
 	return res
+}
+
+func (o Options) setStage(s string) {
+	if o.Stage != nil {
+		o.Stage.Store(s)
+	}
 }
 
 func (r *Result) addConfigFindings(path string, findings []ioc.Finding, err error, optional bool) {
