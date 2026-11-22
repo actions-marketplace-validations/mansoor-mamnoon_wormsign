@@ -23,7 +23,8 @@ import (
 var version = "dev"
 
 func init() {
-	// `go install ...@v0.1.0` builds carry the module version, not ldflags.
+	// `go install ...@v0.1.0` builds carry the module version in their build info;
+	// release builds set it with ldflags.
 	if version == "dev" {
 		if bi, ok := debug.ReadBuildInfo(); ok && bi.Main.Version != "" && bi.Main.Version != "(devel)" {
 			version = strings.TrimPrefix(bi.Main.Version, "v")
@@ -47,7 +48,7 @@ func main() {
 	var (
 		jsonOut   = flag.Bool("json", false, "print results as JSON")
 		offline   = flag.Bool("offline", false, "skip the OSV.dev lookup (no network); local checks only")
-		vulns     = flag.Bool("all-vulns", false, "also report ordinary vulnerabilities, not just malware")
+		vulns     = flag.Bool("all-vulns", false, "also report ordinary vulnerabilities (CVEs)")
 		noGlobals = flag.Bool("no-globals", false, "skip global installs and the npx cache")
 		project   = flag.Bool("project", false, "scan only the given paths; skip machine-wide checks (for CI)")
 		strict    = flag.Bool("strict", false, "exit non-zero on warnings too")
@@ -118,7 +119,7 @@ func main() {
 	}
 	if *demoMode {
 		if !*jsonOut {
-			fmt.Println("  (demo: that was a fake project in a temp dir — run `wormsign` to scan your machine)")
+			fmt.Println("  (demo: this was a fake project in a temp directory. Run `wormsign` to scan this machine.)")
 			fmt.Println()
 		}
 		return
@@ -149,7 +150,7 @@ func spinner(n *atomic.Int64, enabled bool) func() {
 				fmt.Fprint(os.Stderr, "\r\033[K")
 				return
 			case <-t.C:
-				fmt.Fprintf(os.Stderr, "\r\033[K%c scanning… %d dirs", frames[i%len(frames)], n.Load())
+				fmt.Fprintf(os.Stderr, "\r\033[K%c scanning... %d dirs", frames[i%len(frames)], n.Load())
 			}
 		}
 	}()
