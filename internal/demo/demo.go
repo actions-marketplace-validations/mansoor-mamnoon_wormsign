@@ -61,7 +61,7 @@ func realName(rel string) string {
 // --demo never show anything about the real machine.
 func Credentials() []ioc.Credential {
 	return []ioc.Credential{
-		{Name: "npm token", Path: "~/.npmrc", Rotate: "npm token revoke <id> (npmjs.com, Access Tokens page), then `npm login`"},
+		{Name: "npm token", Path: "~/.npmrc", Rotate: "Revoke it on npmjs.com (Access Tokens), then `npm login`"},
 		{Name: "GitHub CLI token", Path: "~/.config/gh/hosts.yml", Rotate: "Revoke at github.com/settings/applications, then `gh auth login`"},
 		{Name: "AWS keys", Path: "~/.aws/credentials", Rotate: "Deactivate the access keys in IAM and issue new ones"},
 		{Name: "SSH key id_ed25519", Path: "~/.ssh/id_ed25519", Rotate: "Generate a new key, replace it on GitHub/servers"},
