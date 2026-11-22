@@ -115,6 +115,9 @@ func main() {
 	if res.Critical() || (*strict && res.Warnings()) {
 		os.Exit(1)
 	}
+	if res.OSVError != "" {
+		os.Exit(2) // don't let a network failure look like a clean bill of health
+	}
 }
 
 // spinner shows a live directory count on stderr while the walk runs.

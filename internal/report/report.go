@@ -169,6 +169,8 @@ func Text(w io.Writer, r *scan.Result, s Style, home, version string) {
 		for _, c := range r.Credentials {
 			p("    %s•%s %-22s %s%s%s\n", s.red, s.reset, truncate(c.Name, 22), s.dim, c.Rotate, s.reset)
 		}
+	case r.OSVError != "":
+		p("  %s%sPackages were not checked%s (OSV.dev unreachable). Local checks found nothing critical; re-run when online.\n", s.yellow, s.bold, s.reset)
 	case r.Warnings():
 		p("  %s%sNothing malicious found%s, but review the warnings above.\n", s.yellow, s.bold, s.reset)
 	default:
