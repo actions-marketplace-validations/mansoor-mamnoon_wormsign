@@ -1,6 +1,6 @@
 #!/bin/sh
 # wormsign installer: downloads the latest release binary, verifies its
-# checksum, and installs it. Read it before you run it — that's the point.
+# checksum, and installs it. Read it before running it.
 set -eu
 
 REPO="mansoor-mamnoon/wormsign"
