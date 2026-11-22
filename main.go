@@ -10,6 +10,8 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"runtime/debug"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -19,6 +21,15 @@ import (
 )
 
 var version = "dev"
+
+func init() {
+	// `go install ...@v0.1.0` builds carry the module version, not ldflags.
+	if version == "dev" {
+		if bi, ok := debug.ReadBuildInfo(); ok && bi.Main.Version != "" && bi.Main.Version != "(devel)" {
+			version = strings.TrimPrefix(bi.Main.Version, "v")
+		}
+	}
+}
 
 const usage = `wormsign — did a supply-chain worm get this machine?
 
