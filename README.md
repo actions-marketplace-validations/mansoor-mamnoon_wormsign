@@ -183,6 +183,7 @@ Please report false positives, misses and new campaign indicators in
 ## Development
 
 ```sh
+gofmt -l .          # CI formats with Go 1.27; older gofmt aligns some maps differently
 go vet ./...
 go test -race ./...
 go run . --demo
