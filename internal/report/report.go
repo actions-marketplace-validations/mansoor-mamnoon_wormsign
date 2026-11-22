@@ -96,9 +96,11 @@ func Text(w io.Writer, r *scan.Result, s Style, home, version string) {
 				p("        %s\n", tilde(loc))
 			}
 		}
+		p("\n")
 	}
 
 	// IOC sections.
+	endedBlank := len(r.Hits) > 0 && r.OSVChecked
 	for _, sec := range sections {
 		if r.ProjectOnly && sec.label == "Autostart" {
 			continue
@@ -113,6 +115,7 @@ func Text(w io.Writer, r *scan.Result, s Style, home, version string) {
 		}
 		if len(fs) == 0 {
 			p("  %s %-15s %s\n", ok, sec.label, s.dim+sec.ok+s.reset)
+			endedBlank = false
 			continue
 		}
 		icon := warn
@@ -121,7 +124,7 @@ func Text(w io.Writer, r *scan.Result, s Style, home, version string) {
 				icon = bad
 			}
 		}
-		p("  %s %-15s %d finding(s)\n", icon, sec.label, len(fs))
+		p("  %s %-15s %s\n", icon, sec.label, count(len(fs), "finding"))
 		for _, f := range fs {
 			col := s.yellow
 			if f.Severity == ioc.Critical {
@@ -138,6 +141,8 @@ func Text(w io.Writer, r *scan.Result, s Style, home, version string) {
 				p("        → %s\n", f.Fix)
 			}
 		}
+		p("\n")
+		endedBlank = true
 	}
 
 	// MCP inventory: injected servers are the newest worm trick, and only a
@@ -154,13 +159,15 @@ func Text(w io.Writer, r *scan.Result, s Style, home, version string) {
 	}
 
 	// Verdict.
-	p("\n")
+	if !endedBlank || len(r.MCPServers) > 0 {
+		p("\n")
+	}
 	switch {
 	case r.Critical():
 		p("  %s%sLikely compromised.%s Assume every credential below was stolen.\n", s.red, s.bold, s.reset)
 		p("  Rotate them from a %sdifferent, clean machine%s — the worm may still be watching this one.\n\n", s.bold, s.reset)
 		for _, c := range r.Credentials {
-			p("    %s•%s %-32s %s%s%s\n", s.red, s.reset, truncate(c.Name, 32), s.dim, c.Rotate, s.reset)
+			p("    %s•%s %-22s %s%s%s\n", s.red, s.reset, truncate(c.Name, 22), s.dim, c.Rotate, s.reset)
 		}
 	case r.Warnings():
 		p("  %s%sNothing malicious found%s, but review the warnings above.\n", s.yellow, s.bold, s.reset)
@@ -174,7 +181,14 @@ func Text(w io.Writer, r *scan.Result, s Style, home, version string) {
 		}
 		p("  %sIf this ever changes, you'd need to rotate %d credentials: %s%s\n", s.dim, len(r.Credentials), truncate(strings.Join(names, ", "), 120), s.reset)
 	}
-	p("  %sScanned %s dirs, %d workflows, %d configs in %s%s\n\n", s.dim, commas(r.Dirs), r.Workflows, r.Configs, r.Duration.Round(100*time.Millisecond), s.reset)
+	p("\n  %sScanned %s dirs, %s, %s in %s%s\n\n", s.dim, commas(r.Dirs), count(r.Workflows, "workflow"), count(r.Configs, "config"), r.Duration.Round(100*time.Millisecond), s.reset)
+}
+
+func count(n int, noun string) string {
+	if n == 1 {
+		return "1 " + noun
+	}
+	return fmt.Sprintf("%d %ss", n, noun)
 }
 
 func commas(n int) string {
