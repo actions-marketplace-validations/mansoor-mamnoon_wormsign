@@ -96,14 +96,25 @@ func (c *Client) Check(ctx context.Context, ps []pkgs.Package) ([]Hit, error) {
 		}
 	}
 
-	// Collect ids that need detail lookups.
+	// Fetch details only for malware records. OSV stores malware as MAL-*
+	// entries that list the affected versions themselves, so the batch query
+	// already returns the MAL id; fetching every CVE to look for MAL aliases
+	// cost hundreds of requests per scan. With --all-vulns every id is needed
+	// for its summary.
 	need := map[string]bool{}
 	for _, list := range ids {
 		for _, id := range list {
-			need[id] = true
+			if c.IncludeVulns || strings.HasPrefix(id, "MAL-") {
+				need[id] = true
+			}
 		}
 	}
 	details, detailErr := c.fetchAll(ctx, need)
+	if !c.IncludeVulns {
+		// A MAL id is a hit with or without its summary text, so a failed
+		// detail fetch loses wording, not detection.
+		detailErr = nil
+	}
 
 	var hits []Hit
 	for i, list := range ids {
