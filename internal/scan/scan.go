@@ -23,7 +23,7 @@ type Options struct {
 	Offline      bool
 	IncludeVulns bool
 	NoGlobals    bool
-	// ProjectOnly scans just the given roots: no global installs, user-level
+	// ProjectOnly scans only the given roots: no global installs, user-level
 	// agent configs, autostart entries or credential inventory. For CI.
 	ProjectOnly bool
 	Progress    *atomic.Int64

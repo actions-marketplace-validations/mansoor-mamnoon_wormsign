@@ -2,7 +2,7 @@
 //
 // OSV aggregates the OpenSSF malicious-packages dataset (MAL-* ids) and
 // GitHub's malware advisories, so a single batch query covers every known
-// campaign — Shai-Hulud, ChainDrop, typosquats — without a hardcoded list.
+// campaign (Shai-Hulud, ChainDrop, typosquats) without a hardcoded list.
 package osv
 
 import (

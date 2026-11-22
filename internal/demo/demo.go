@@ -1,4 +1,4 @@
-// Package demo materialises a harmless fake "infected" project so people can
+// Package demo materializes a harmless fake "infected" project so people can
 // see what a wormsign detection looks like without being infected.
 //
 // The fixture is stored with renamed paths (dot-vscode, *.txt, ...) so that
@@ -61,7 +61,7 @@ func realName(rel string) string {
 // --demo never show anything about the real machine.
 func Credentials() []ioc.Credential {
 	return []ioc.Credential{
-		{Name: "npm token", Path: "~/.npmrc", Rotate: "npm token revoke <id> (npmjs.com → Access Tokens), then `npm login`"},
+		{Name: "npm token", Path: "~/.npmrc", Rotate: "npm token revoke <id> (npmjs.com, Access Tokens page), then `npm login`"},
 		{Name: "GitHub CLI token", Path: "~/.config/gh/hosts.yml", Rotate: "`gh auth refresh` or revoke at github.com/settings/applications"},
 		{Name: "AWS keys", Path: "~/.aws/credentials", Rotate: "Deactivate the access keys in IAM and issue new ones"},
 		{Name: "SSH key id_ed25519", Path: "~/.ssh/id_ed25519", Rotate: "Generate a new key, replace it on GitHub/servers"},

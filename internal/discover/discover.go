@@ -206,7 +206,7 @@ func (inv *Inventory) AddGlobals(home string) {
 
 // ScanProjectNodeModules reads installed packages in project node_modules
 // dirs. Lockfiles usually cover these, but a node_modules without a lockfile
-// (or one that drifted) is exactly where a bad version hides.
+// (or one that drifted) is where a bad version hides.
 func (inv *Inventory) ScanProjectNodeModules() {
 	have := map[string]bool{}
 	for _, s := range inv.Sources {
