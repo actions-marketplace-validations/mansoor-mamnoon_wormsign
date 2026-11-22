@@ -59,15 +59,11 @@ go install github.com/mansoor-mamnoon/wormsign@latest
 To pin a release:
 
 ```sh
-curl -fsSL https://raw.githubusercontent.com/mansoor-mamnoon/wormsign/main/install.sh | WORMSIGN_VERSION=0.1.2 sh
-go install github.com/mansoor-mamnoon/wormsign@v0.1.2
+curl -fsSL https://raw.githubusercontent.com/mansoor-mamnoon/wormsign/main/install.sh | WORMSIGN_VERSION=0.1.3 sh
+go install github.com/mansoor-mamnoon/wormsign@v0.1.3
 ```
 
-The behavior documented here includes unreleased fixes on `main`. To try those fixes:
-
-```sh
-go install github.com/mansoor-mamnoon/wormsign@main
-```
+The latest release is [v0.1.3](https://github.com/mansoor-mamnoon/wormsign/releases/tag/v0.1.3).
 
 ## Usage
 
@@ -141,13 +137,13 @@ jobs:
       - uses: mansoor-mamnoon/wormsign@v0
         # with:
         #   args: --strict
-        #   version: 0.1.2
+        #   version: 0.1.3
 ```
 
 The action runs `--project`, skips machine-wide checks and the credential inventory, and
-writes its report to the job summary. `@v0` follows the action's 0.x releases; `@v0.1.2` pins
+writes its report to the job summary. `@v0` follows the action's 0.x releases; `@v0.1.3` pins
 the action. The `version` input independently pins the installed scanner; otherwise it uses
-the latest release. Neither includes unreleased fixes on `main`.
+the latest release.
 
 ## Other tools
 
@@ -201,5 +197,9 @@ go vet ./...
 go test -race ./...
 go run . --demo --offline
 ```
+
+To regenerate the GIF, build the binary and run `scripts/render-demo.py` with its path and
+a monospace font path. The renderer requires Python and Pillow and captures the real offline
+demo output.
 
 Release history: [releases](https://github.com/mansoor-mamnoon/wormsign/releases). License: [MIT](LICENSE).
