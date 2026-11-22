@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -42,21 +43,20 @@ func JSON(w io.Writer, r *scan.Result) error {
 	return enc.Encode(r)
 }
 
-type section struct {
+// groups names the finding categories for the "Checked and clean" line.
+var groups = []struct {
 	label  string
 	checks []string
-	ok     string
+}{
+	{"coding agents", []string{"claude-hooks", "mcp"}},
+	{"editor tasks", []string{"vscode-tasks"}},
+	{"CI workflows", []string{"workflows"}},
+	{"autostart", []string{"autostart", "shell-rc"}},
+	{"payload files", []string{"payload-files", "worm-artifacts"}},
 }
 
-var sections = []section{
-	{"Coding agents", []string{"claude-hooks", "mcp"}, "no malicious hooks or MCP servers"},
-	{"Editors", []string{"vscode-tasks"}, "no suspicious auto-run tasks"},
-	{"CI workflows", []string{"workflows"}, "no backdoored workflows"},
-	{"Autostart", []string{"autostart", "shell-rc"}, "launch agents, services, cron and shell rc clean"},
-	{"Worm artifacts", []string{"payload-files", "worm-artifacts"}, "no known payload files"},
-}
-
-// Text renders the human report.
+// Text renders the human report: the verdict first, then what was found and
+// where, then numbered steps.
 func Text(w io.Writer, r *scan.Result, s Style, home, version string) {
 	p := func(format string, a ...any) { fmt.Fprintf(w, format, a...) }
 	tilde := func(path string) string {
@@ -65,90 +65,111 @@ func Text(w io.Writer, r *scan.Result, s Style, home, version string) {
 		}
 		return path
 	}
-	ok := s.green + "✓" + s.reset
-	bad := s.red + "✗" + s.reset
-	warn := s.yellow + "!" + s.reset
 
-	p("\n%swormsign%s %s%s%s\n\n", s.bold, s.reset, s.dim, version, s.reset)
+	p("\n%swormsign%s %s%s  scanned %s packages, %s and %s in %s%s\n\n",
+		s.bold, s.reset, s.dim, version, commas(r.Packages), count(r.Configs, "config"),
+		count(r.Workflows, "workflow"), r.Duration.Round(100*time.Millisecond), s.reset)
 
-	// Packages.
+	var crit, warns int
+	for _, f := range r.Findings {
+		switch f.Severity {
+		case ioc.Critical:
+			crit++
+		case ioc.Warn:
+			warns++
+		}
+	}
+	traces := crit + warns
+
+	// 1. Verdict.
 	switch {
+	case r.Critical():
+		p("  %s%s✗ COMPROMISED%s  %s\n\n", s.red, s.bold, s.reset, joinNonEmpty(
+			countIf(len(r.Hits), "malicious package"), countIf(traces, "worm trace")))
 	case r.OSVError != "":
-		p("  %s %-15s could not reach OSV.dev: %s\n", warn, "Packages", r.OSVError)
+		p("  %s%s! NOT CHECKED%s  packages could not be checked: %s\n\n", s.yellow, s.bold, s.reset, r.OSVError)
+	case warns > 0:
+		p("  %s%s! REVIEW%s  no known-malicious packages; %s to look at\n\n", s.yellow, s.bold, s.reset, count(warns, "warning"))
 	case !r.OSVChecked && r.Packages > 0:
-		p("  %s %-15s %s packages found; OSV lookup skipped (--offline)\n", warn, "Packages", commas(r.Packages))
-	case len(r.Hits) == 0:
-		p("  %s %-15s %s packages in %s lockfiles and installs, none known-malicious\n", ok, "Packages", commas(r.Packages), commas(r.Sources))
+		p("  %s%s! PARTIAL%s  no worm traces; packages not checked (--offline)\n\n", s.yellow, s.bold, s.reset)
 	default:
-		p("  %s %s%-15s %d MALICIOUS%s of %s packages\n", bad, s.red+s.bold, "Packages", len(r.Hits), s.reset, commas(r.Packages))
+		p("  %s%s✓ CLEAN%s  no known-malicious packages and no worm traces\n\n", s.green, s.bold, s.reset)
+	}
+
+	// 2. Malicious packages.
+	if len(r.Hits) > 0 {
+		p("  %sMalicious packages%s\n", s.bold, s.reset)
 		for _, h := range r.Hits {
 			a := h.Advisories[0]
 			sum := a.Summary
 			if sum == "" {
 				sum = "known malicious release"
 			}
-			p("      %s%s%s  %s  %s%s%s\n", s.bold, h.Package.String(), s.reset, a.ID, s.dim, sum, s.reset)
+			p("    %s%s%s  %s%s  %s%s\n", s.red+s.bold, h.Package.String(), s.reset, s.dim, a.ID, sum, s.reset)
 			for i, loc := range h.Locations {
-				if i == 5 {
-					p("        %s... and %d more%s\n", s.dim, len(h.Locations)-5, s.reset)
+				if i == 3 {
+					p("      %s... and %d more (see --json)%s\n", s.dim, len(h.Locations)-3, s.reset)
 					break
 				}
-				p("        %s\n", tilde(loc))
+				p("      %s\n", tilde(loc))
 			}
 		}
 		p("\n")
 	}
 
-	// IOC sections.
-	endedBlank := len(r.Hits) > 0 && r.OSVChecked
-	for _, sec := range sections {
-		if r.ProjectOnly && sec.label == "Autostart" {
-			continue
+	// 3. Worm traces.
+	if traces > 0 {
+		heading := "Worm traces"
+		if crit == 0 {
+			heading = "Warnings"
 		}
-		var fs []ioc.Finding
+		p("  %s%s%s\n", s.bold, heading, s.reset)
 		for _, f := range r.Findings {
-			for _, c := range sec.checks {
-				if f.Check == c {
-					fs = append(fs, f)
-				}
+			if f.Severity == ioc.Info {
+				continue
 			}
-		}
-		if len(fs) == 0 {
-			p("  %s %-15s %s\n", ok, sec.label, s.dim+sec.ok+s.reset)
-			endedBlank = false
-			continue
-		}
-		icon := warn
-		for _, f := range fs {
-			if f.Severity == ioc.Critical {
-				icon = bad
+			col := s.red
+			if f.Severity == ioc.Warn {
+				col = s.yellow
 			}
-		}
-		p("  %s %-15s %s\n", icon, sec.label, count(len(fs), "finding"))
-		for _, f := range fs {
-			col := s.yellow
-			if f.Severity == ioc.Critical {
-				col = s.red
-			}
-			p("      %s%s%s %s\n", col, strings.ToUpper(f.Severity.String()), s.reset, f.Title)
+			p("    %s%s%s\n", col, f.Title, s.reset)
 			if f.Path != "" {
-				p("        %s\n", tilde(f.Path))
+				p("      %s\n", tilde(f.Path))
 			}
 			if f.Evidence != "" {
-				p("        %s%s%s\n", s.dim, f.Evidence, s.reset)
-			}
-			if f.Fix != "" {
-				p("        fix: %s\n", f.Fix)
+				p("      %s%s%s\n", s.dim, truncate(f.Evidence, 100), s.reset)
 			}
 		}
 		p("\n")
-		endedBlank = true
 	}
 
-	// MCP inventory: injected servers are the newest worm trick, and only a
-	// human knows which ones they installed.
+	// 4. What was checked and came back clean.
+	var clean []string
+	if r.OSVChecked && len(r.Hits) == 0 {
+		clean = append(clean, fmt.Sprintf("packages (%s lockfiles and installs)", commas(r.Sources)))
+	}
+	for _, g := range groups {
+		if r.ProjectOnly && g.label == "autostart" {
+			continue
+		}
+		found := false
+		for _, f := range r.Findings {
+			if f.Severity != ioc.Info && slices.Contains(g.checks, f.Check) {
+				found = true
+			}
+		}
+		if !found {
+			clean = append(clean, g.label)
+		}
+	}
+	if len(clean) > 0 {
+		p("  %s✓%s %sChecked and clean: %s%s\n\n", s.green, s.reset, s.dim, strings.Join(clean, ", "), s.reset)
+	}
+
+	// 5. MCP inventory: injected servers are a recent worm trick, and only a
+	// person knows which ones they installed.
 	if len(r.MCPServers) > 0 {
-		p("\n  %sMCP servers on this machine.%s %sCheck that you installed each one.%s\n", s.bold, s.reset, s.dim, s.reset)
+		p("  %sMCP servers on this machine%s %s(check that you installed each one)%s\n", s.bold, s.reset, s.dim, s.reset)
 		for i, m := range r.MCPServers {
 			if i == 15 {
 				p("    %s... and %d more (see --json)%s\n", s.dim, len(r.MCPServers)-15, s.reset)
@@ -156,34 +177,62 @@ func Text(w io.Writer, r *scan.Result, s Style, home, version string) {
 			}
 			p("    %-15s %-24s %s%s%s\n", m.Client, truncate(m.Name, 24), s.dim, truncate(m.CommandLine(), 60), s.reset)
 		}
-	}
-
-	// Verdict.
-	if !endedBlank || len(r.MCPServers) > 0 {
 		p("\n")
 	}
-	switch {
-	case r.Critical():
-		p("  %s%sLikely compromised.%s Assume every credential below was stolen.\n", s.red, s.bold, s.reset)
-		p("  Rotate them from a %sdifferent machine%s; this one may still be running the payload.\n\n", s.bold, s.reset)
-		for _, c := range r.Credentials {
-			p("    %s•%s %-22s %s%s%s\n", s.red, s.reset, truncate(c.Name, 22), s.dim, c.Rotate, s.reset)
+
+	// 6. Steps.
+	var fixes []string
+	for _, f := range r.Findings {
+		if f.Severity != ioc.Info && f.Fix != "" && !slices.Contains(fixes, f.Fix) {
+			fixes = append(fixes, f.Fix)
 		}
-	case r.OSVError != "":
-		p("  %s%sPackages were not checked%s (OSV.dev unreachable). Local checks found nothing critical; re-run when online.\n", s.yellow, s.bold, s.reset)
-	case r.Warnings():
-		p("  %s%sNothing malicious found%s, but review the warnings above.\n", s.yellow, s.bold, s.reset)
-	default:
-		p("  %s%sNo signs of a supply-chain worm.%s\n", s.green, s.bold, s.reset)
 	}
-	if !r.Critical() && len(r.Credentials) > 0 {
-		names := make([]string, 0, len(r.Credentials))
+	if r.Critical() {
+		p("  %sWhat to do now%s\n", s.bold, s.reset)
+		p("    1. From a %sdifferent machine%s, rotate the credentials stored on this one:\n", s.bold, s.reset)
 		for _, c := range r.Credentials {
-			names = append(names, strings.SplitN(c.Name, ":", 2)[0])
+			p("         %-22s %s%s%s\n", truncate(c.Name, 22), s.dim, c.Rotate, s.reset)
 		}
-		p("  %sCredentials a worm could steal here (%d): %s%s\n", s.dim, len(r.Credentials), truncate(strings.Join(names, ", "), 120), s.reset)
+		step := 2
+		if len(r.Hits) > 0 {
+			p("    %d. Delete the node_modules or virtualenv that holds each package above, and reinstall\n       from a lockfile that does not pin those versions.\n", step)
+			step++
+		}
+		if traces > 0 {
+			p("    %d. Remove each worm trace listed above, unless you added it yourself.\n", step)
+			step++
+		}
+		for _, f := range r.Findings {
+			if f.Check == "workflows" && f.Severity == ioc.Critical {
+				p("    %d. Rotate the repository and organization secrets on GitHub; the workflow could read them.\n", step)
+				break
+			}
+		}
+		p("\n")
+	} else if len(fixes) > 0 {
+		p("  %sTo check%s\n", s.bold, s.reset)
+		for i, fx := range fixes {
+			p("    %d. %s\n", i+1, fx)
+		}
+		p("\n")
 	}
-	p("\n  %sScanned %s dirs, %s, %s in %s%s\n\n", s.dim, commas(r.Dirs), count(r.Workflows, "workflow"), count(r.Configs, "config"), r.Duration.Round(100*time.Millisecond), s.reset)
+}
+
+func countIf(n int, noun string) string {
+	if n == 0 {
+		return ""
+	}
+	return count(n, noun)
+}
+
+func joinNonEmpty(parts ...string) string {
+	var out []string
+	for _, x := range parts {
+		if x != "" {
+			out = append(out, x)
+		}
+	}
+	return strings.Join(out, ", ")
 }
 
 func count(n int, noun string) string {
