@@ -57,15 +57,21 @@ type Result struct {
 	ParseErrors []string         `json:"parse_errors,omitempty"`
 }
 
+// Malicious distinguishes malware from ordinary vulnerability advisories.
+func (h MalHit) Malicious() bool {
+	for _, a := range h.Advisories {
+		if a.Malicious {
+			return true
+		}
+	}
+	return false
+}
+
 // Critical reports whether anything critical was found.
 func (r *Result) Critical() bool {
-	if len(r.Hits) > 0 {
-		for _, h := range r.Hits {
-			for _, a := range h.Advisories {
-				if a.Malicious {
-					return true
-				}
-			}
+	for _, h := range r.Hits {
+		if h.Malicious() {
+			return true
 		}
 	}
 	for _, f := range r.Findings {
@@ -78,6 +84,11 @@ func (r *Result) Critical() bool {
 
 // Warnings reports whether any warning-level finding exists.
 func (r *Result) Warnings() bool {
+	for _, h := range r.Hits {
+		if !h.Malicious() {
+			return true
+		}
+	}
 	for _, f := range r.Findings {
 		if f.Severity == ioc.Warn {
 			return true

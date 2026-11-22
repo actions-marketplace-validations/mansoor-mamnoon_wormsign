@@ -60,7 +60,7 @@ var groups = []struct {
 func Text(w io.Writer, r *scan.Result, s Style, home, version string) {
 	p := func(format string, a ...any) { fmt.Fprintf(w, format, a...) }
 	tilde := func(path string) string {
-		if home != "" && strings.HasPrefix(path, home) {
+		if home != "" && (path == home || strings.HasPrefix(path, home+string(os.PathSeparator))) {
 			return "~" + path[len(home):]
 		}
 		return path
@@ -79,21 +79,34 @@ func Text(w io.Writer, r *scan.Result, s Style, home, version string) {
 			warns++
 		}
 	}
+
 	traces := crit + warns
+	malicious := 0
+	for _, h := range r.Hits {
+		if h.Malicious() {
+			malicious++
+		} else {
+			warns++
+		}
+	}
 
 	// 1. Verdict.
 	switch {
 	case r.Critical():
-		p("  %s%s✗ COMPROMISED%s  %s\n\n", s.red, s.bold, s.reset, joinNonEmpty(
-			countIf(len(r.Hits), "malicious package"), countIf(traces, "worm trace")))
+		p("  %s%s✗ DETECTED%s  %s\n\n", s.red, s.bold, s.reset, joinNonEmpty(
+			countIf(malicious, "malicious package"), countIf(traces, "worm trace")))
 	case r.Incomplete():
 		p("  %s%s! PARTIAL%s  some checks failed; see scan limitations below\n\n", s.yellow, s.bold, s.reset)
 	case warns > 0:
-		p("  %s%s! REVIEW%s  no known-malicious packages; %s to look at\n\n", s.yellow, s.bold, s.reset, count(warns, "warning"))
+		p("  %s%s! REVIEW%s  %s to look at; see findings below\n\n", s.yellow, s.bold, s.reset, count(warns, "warning"))
 	case !r.OSVChecked && r.Packages > 0:
 		p("  %s%s! PARTIAL%s  no worm traces; packages not checked (--offline)\n\n", s.yellow, s.bold, s.reset)
 	default:
-		p("  %s%s✓ CLEAN%s  no known-malicious packages and no worm traces\n\n", s.green, s.bold, s.reset)
+		p("  %s%s✓ CLEAN%s  no known indicators found in the files checked\n\n", s.green, s.bold, s.reset)
+	}
+
+	if !r.OSVChecked && r.Packages > 0 && r.OSVError == "" {
+		p("  Package lookup skipped (--offline); package versions were not checked.\n\n")
 	}
 
 	if r.Incomplete() {
@@ -110,16 +123,25 @@ func Text(w io.Writer, r *scan.Result, s Style, home, version string) {
 		p("\n")
 	}
 
-	// 2. Malicious packages.
-	if len(r.Hits) > 0 {
-		p("  %sMalicious packages%s\n", s.bold, s.reset)
+	for _, malware := range []bool{true, false} {
+		heading := "Vulnerable packages"
+		col := s.yellow
+		if malware {
+			heading, col = "Malicious packages", s.red
+		}
+		printed := false
 		for _, h := range r.Hits {
-			a := h.Advisories[0]
-			sum := a.Summary
-			if sum == "" {
-				sum = "known malicious release"
+			if h.Malicious() != malware {
+				continue
 			}
-			p("    %s%s%s  %s%s  %s%s\n", s.red+s.bold, h.Package.String(), s.reset, s.dim, a.ID, sum, s.reset)
+			if !printed {
+				p("  %s%s%s\n", s.bold, heading, s.reset)
+				printed = true
+			}
+			p("    %s%s%s\n", col+s.bold, h.Package.String(), s.reset)
+			for _, a := range h.Advisories {
+				p("      %s%s  %s%s\n", s.dim, a.ID, a.Summary, s.reset)
+			}
 			for i, loc := range h.Locations {
 				if i == 3 {
 					p("      %s... and %d more (see --json)%s\n", s.dim, len(h.Locations)-3, s.reset)
@@ -128,7 +150,9 @@ func Text(w io.Writer, r *scan.Result, s Style, home, version string) {
 				p("      %s\n", tilde(loc))
 			}
 		}
-		p("\n")
+		if printed {
+			p("\n")
+		}
 	}
 
 	// 3. Worm traces.
@@ -177,7 +201,7 @@ func Text(w io.Writer, r *scan.Result, s Style, home, version string) {
 		}
 	}
 	if len(clean) > 0 && !r.Incomplete() {
-		p("  %s✓%s %sChecked and clean: %s%s\n\n", s.green, s.reset, s.dim, strings.Join(clean, ", "), s.reset)
+		p("  %s✓%s %sNo matching indicators: %s%s\n\n", s.green, s.reset, s.dim, strings.Join(clean, ", "), s.reset)
 	}
 
 	// 5. MCP inventory: injected servers are a recent worm trick, and only a
@@ -203,12 +227,17 @@ func Text(w io.Writer, r *scan.Result, s Style, home, version string) {
 	}
 	if r.Critical() {
 		p("  %sWhat to do now%s\n", s.bold, s.reset)
-		p("    1. From a %sdifferent machine%s, rotate the credentials stored on this one:\n", s.bold, s.reset)
+		p("    Confirm the finding before treating it as evidence that code ran.\n")
+		if len(r.Credentials) == 0 {
+			p("    1. If the payload ran, rotate the credentials it could access from a different machine.\n")
+		} else {
+			p("    1. If the payload ran, rotate these credentials from a %sdifferent machine%s:\n", s.bold, s.reset)
+		}
 		for _, c := range r.Credentials {
 			p("         %-22s %s%s%s\n", truncate(c.Name, 22), s.dim, c.Rotate, s.reset)
 		}
 		step := 2
-		if len(r.Hits) > 0 {
+		if malicious > 0 {
 			p("    %d. Delete the node_modules or virtualenv that holds each package above, and reinstall\n       from a lockfile that does not pin those versions.\n", step)
 			step++
 		}

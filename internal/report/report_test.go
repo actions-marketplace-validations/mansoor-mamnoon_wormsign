@@ -8,6 +8,9 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/mansoor-mamnoon/wormsign/internal/ioc"
+	"github.com/mansoor-mamnoon/wormsign/internal/osv"
+	"github.com/mansoor-mamnoon/wormsign/internal/pkgs"
 	"github.com/mansoor-mamnoon/wormsign/internal/scan"
 )
 
@@ -50,5 +53,31 @@ func TestReportsOmitCommandsAndMCPURLs(t *testing.T) {
 		if strings.Contains(out.String(), secret) {
 			t.Fatalf("reports leaked command or URL: %s", secret)
 		}
+	}
+}
+
+func TestVulnerabilitiesAreNotLabeledMalware(t *testing.T) {
+	res := &scan.Result{OSVChecked: true, Hits: []scan.MalHit{{
+		Package:    pkgs.Package{Ecosystem: pkgs.NPM, Name: "example", Version: "1.0.0"},
+		Advisories: []osv.Advisory{{ID: "GHSA-example", Summary: "ordinary vulnerability"}},
+	}}}
+	var out bytes.Buffer
+	Text(&out, res, NewStyle(false), "", "test")
+	text := out.String()
+	if !strings.Contains(text, "REVIEW") || !strings.Contains(text, "Vulnerable packages") || strings.Contains(text, "Malicious packages") || strings.Contains(text, "CLEAN") {
+		t.Fatalf("misclassified vulnerability:\n%s", text)
+	}
+	if res.Critical() || !res.Warnings() || res.ExitCode(false) != 0 || res.ExitCode(true) != 1 {
+		t.Fatalf("wrong vulnerability exit behavior: %+v", res)
+	}
+}
+
+func TestOfflineDetectionDoesNotClaimConfirmedCompromise(t *testing.T) {
+	res := &scan.Result{Packages: 1, Findings: []ioc.Finding{{Severity: ioc.Critical, Title: "known payload filename"}}}
+	var out bytes.Buffer
+	Text(&out, res, NewStyle(false), "", "test")
+	text := out.String()
+	if !strings.Contains(text, "DETECTED") || !strings.Contains(text, "Package lookup skipped") || strings.Contains(text, "COMPROMISED") {
+		t.Fatalf("misleading detection report:\n%s", text)
 	}
 }
