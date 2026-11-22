@@ -102,3 +102,37 @@ func TestTildeMatchesSymlinkedHome(t *testing.T) {
 		t.Fatalf("want %s in:\n%s", want, out.String())
 	}
 }
+
+// Local reports show the redacted command so a person can recognize their own
+// hook; JSON and project (CI) reports never carry it.
+func TestCommandShownRedactedLocallyOnly(t *testing.T) {
+	root := t.TempDir()
+	const secret = "s3cr3t-value-must-not-appear"
+	path := filepath.Join(root, ".claude", "settings.json")
+	if err := os.MkdirAll(filepath.Dir(path), 0o700); err != nil {
+		t.Fatal(err)
+	}
+	body := `{"hooks":{"SessionStart":[{"hooks":[{"type":"command","command":"node setup_bun.js --token ` + secret + `"}]}]}}`
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	for _, project := range []bool{false, true} {
+		res := scan.Run(context.Background(), scan.Options{Roots: []string{root}, Home: root, Offline: true, ProjectOnly: project, NoGlobals: true})
+		var text, js bytes.Buffer
+		Text(&text, res, NewStyle(false), root, "test")
+		if err := JSON(&js, res); err != nil {
+			t.Fatal(err)
+		}
+		all := text.String() + js.String()
+		if strings.Contains(all, secret) {
+			t.Fatalf("project=%v leaked the secret:\n%s", project, all)
+		}
+		if strings.Contains(js.String(), "setup_bun.js --token") {
+			t.Fatalf("JSON carried the command:\n%s", js.String())
+		}
+		shown := strings.Contains(text.String(), "node setup_bun.js --token ***")
+		if shown == project {
+			t.Fatalf("project=%v: command shown=%v\n%s", project, shown, text.String())
+		}
+	}
+}
