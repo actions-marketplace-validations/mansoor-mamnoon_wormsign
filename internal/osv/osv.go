@@ -82,19 +82,33 @@ func IsMalicious(id string, aliases []string) bool {
 
 // Check queries all packages and returns the ones with matching advisories.
 func (c *Client) Check(ctx context.Context, ps []pkgs.Package) ([]Hit, error) {
+	// Batches are independent, so up to four run at once. Each goroutine
+	// writes a disjoint slice range of ids.
 	ids := make([][]string, len(ps))
-	var batchErr error
+	var (
+		wg      sync.WaitGroup
+		mu      sync.Mutex
+		errs    []error
+		limiter = make(chan struct{}, 4)
+	)
 	for start := 0; start < len(ps); start += batchSize {
 		end := min(start+batchSize, len(ps))
-		res, err := c.batch(ctx, ps[start:end])
-		for i, r := range res {
-			ids[start+i] = r
-		}
-		if err != nil {
-			batchErr = err
-			break
-		}
+		wg.Add(1)
+		limiter <- struct{}{}
+		go func(start, end int) {
+			defer wg.Done()
+			defer func() { <-limiter }()
+			res, err := c.batch(ctx, ps[start:end])
+			copy(ids[start:end], res)
+			if err != nil {
+				mu.Lock()
+				errs = append(errs, err)
+				mu.Unlock()
+			}
+		}(start, end)
 	}
+	wg.Wait()
+	batchErr := errors.Join(errs...)
 
 	// Fetch details only for malware records. OSV stores malware as MAL-*
 	// entries that list the affected versions themselves, so the batch query
