@@ -13,6 +13,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/mansoor-mamnoon/wormsign/internal/demo"
 	"github.com/mansoor-mamnoon/wormsign/internal/report"
 	"github.com/mansoor-mamnoon/wormsign/internal/scan"
 )
@@ -40,6 +41,7 @@ func main() {
 		strict    = flag.Bool("strict", false, "exit non-zero on warnings too")
 		noColor   = flag.Bool("no-color", false, "disable colored output")
 		showVer   = flag.Bool("version", false, "print version")
+		demoMode  = flag.Bool("demo", false, "scan a harmless fake infected project to see what a detection looks like")
 	)
 	flag.Usage = func() {
 		fmt.Fprint(os.Stderr, usage)
@@ -68,16 +70,31 @@ func main() {
 		}
 	}
 
+	opts := scan.Options{Roots: roots, Home: home, Offline: *offline, IncludeVulns: *vulns, NoGlobals: *noGlobals}
+	if *demoMode {
+		dir, err := demo.Create()
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "wormsign: demo:", err)
+			os.Exit(2)
+		}
+		defer os.RemoveAll(dir)
+		// Scan only the fake project, and treat it as its own home so the
+		// machine-wide checks don't mix in your real files.
+		opts.Roots, opts.Home, opts.NoGlobals = []string{dir}, dir, true
+		home = dir
+	}
+
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
 	var progress atomic.Int64
 	stopSpinner := spinner(&progress, !*jsonOut && report.ColorEnabled(os.Stderr))
-	res := scan.Run(ctx, scan.Options{
-		Roots: roots, Home: home, Offline: *offline, IncludeVulns: *vulns,
-		NoGlobals: *noGlobals, Progress: &progress,
-	})
+	opts.Progress = &progress
+	res := scan.Run(ctx, opts)
 	stopSpinner()
+	if *demoMode {
+		res.Credentials = demo.Credentials()
+	}
 
 	if *jsonOut {
 		if err := report.JSON(os.Stdout, res); err != nil {
@@ -86,6 +103,13 @@ func main() {
 		}
 	} else {
 		report.Text(os.Stdout, res, report.NewStyle(!*noColor && report.ColorEnabled(os.Stdout)), home, version)
+	}
+	if *demoMode {
+		if !*jsonOut {
+			fmt.Println("  (demo: that was a fake project in a temp dir — run `wormsign` to scan your machine)")
+			fmt.Println()
+		}
+		return
 	}
 	if res.Critical() || (*strict && res.Warnings()) {
 		os.Exit(1)
