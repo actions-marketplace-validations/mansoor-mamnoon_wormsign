@@ -215,6 +215,10 @@ func Text(w io.Writer, r *scan.Result, s Style, home, version string) {
 		p("  %s✓%s %sNo matching indicators: %s%s\n\n", s.green, s.reset, s.dim, strings.Join(clean, ", "), s.reset)
 	}
 
+	if n := len(r.Skipped); n > 0 {
+		p("  %sSkipped %s (too deep or not readable); listed in --json.%s\n\n", s.dim, count(n, "directory"), s.reset)
+	}
+
 	// 5. MCP inventory: injected servers are a recent worm trick, and only a
 	// person knows which ones they installed.
 	if len(r.MCPServers) > 0 {
@@ -305,7 +309,10 @@ func count(n int, noun string) string {
 	if n == 1 {
 		return "1 " + noun
 	}
-	return fmt.Sprintf("%d %ss", n, noun)
+	if strings.HasSuffix(noun, "y") {
+		return fmt.Sprintf("%s %sies", commas(n), strings.TrimSuffix(noun, "y"))
+	}
+	return fmt.Sprintf("%s %ss", commas(n), noun)
 }
 
 func commas(n int) string {
