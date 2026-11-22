@@ -38,11 +38,10 @@ func ClaudeHooks(path string, projectLevel bool) []Finding {
 	// clean SessionStart hooks, which are the exact persistence trick worms
 	// use and worth a look even when the command looks harmless.
 	type agg struct {
-		sev      Severity
-		events   []string
-		reasons  []string
-		evidence string
-		n        int
+		sev     Severity
+		events  []string
+		reasons []string
+		n       int
 	}
 	var bad, auto agg
 	addUnique := func(list []string, items ...string) []string {
@@ -71,23 +70,20 @@ func ClaudeHooks(path string, projectLevel bool) []Finding {
 				a.sev = max(a.sev, sev)
 				a.events = addUnique(a.events, event)
 				a.reasons = addUnique(a.reasons, reasons...)
-				if a.evidence == "" || sev > Warn {
-					a.evidence = truncate(h.Command, 200)
-				}
 			}
 		}
 	}
 	var out []Finding
 	if bad.n > 0 {
 		out = append(out, Finding{
-			Severity: bad.sev, Check: "claude-hooks", Path: path, Evidence: bad.evidence,
+			Severity: bad.sev, Check: "claude-hooks", Path: path,
 			Title: fmt.Sprintf("Claude Code %s hook %s", strings.Join(bad.events, "/"), joinReasons(bad.reasons)),
 			Fix:   "If you did not add this hook, delete it and treat this machine's credentials as stolen.",
 		})
 	}
 	if auto.n > 0 {
 		out = append(out, Finding{
-			Severity: Warn, Check: "claude-hooks", Path: path, Evidence: auto.evidence,
+			Severity: Warn, Check: "claude-hooks", Path: path,
 			Title: "Repo-level Claude Code SessionStart hook runs a command every time the repo is opened",
 			Fix:   "Confirm a teammate added this on purpose (git log -- .claude/settings.json).",
 		})
@@ -123,7 +119,6 @@ func VSCodeTasks(path string) []Finding {
 			Severity: max(sev, Warn),
 			Check:    "vscode-tasks",
 			Path:     path,
-			Evidence: truncate(strings.TrimSpace(cmd), 200),
 			Fix:      "If you did not add this task, delete it.",
 		}
 		if len(reasons) > 0 {
@@ -141,9 +136,9 @@ type MCPServer struct {
 	Name    string   `json:"name"`
 	Client  string   `json:"client"`
 	Path    string   `json:"path"`
-	Command string   `json:"command,omitempty"`
-	Args    []string `json:"args,omitempty"`
-	URL     string   `json:"url,omitempty"`
+	Command string   `json:"-"`
+	Args    []string `json:"-"`
+	URL     string   `json:"-"`
 }
 
 func (m MCPServer) CommandLine() string {
@@ -298,7 +293,6 @@ func MCPFindings(servers []MCPServer) []Finding {
 			Check:    "mcp",
 			Title:    fmt.Sprintf("%s MCP server %q %s", s.Client, s.Name, joinReasons(reasons)),
 			Path:     s.Path,
-			Evidence: truncate(cmd, 200),
 			Fix:      "If you did not install this server, remove it from the config and rotate the secrets it could reach.",
 		})
 	}

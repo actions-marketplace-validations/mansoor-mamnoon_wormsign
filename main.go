@@ -91,9 +91,9 @@ func main() {
 			os.Exit(2)
 		}
 		defer os.RemoveAll(dir)
-		// Scan only the fake project, and treat it as its own home so the
-		// machine-wide checks don't mix in your real files.
+		// Demo checks must never inspect the real machine.
 		opts.Roots, opts.Home, opts.NoGlobals = []string{dir}, dir, true
+		opts.ProjectOnly = true
 		home = dir
 	}
 

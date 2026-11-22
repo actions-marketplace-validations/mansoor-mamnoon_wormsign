@@ -189,7 +189,7 @@ func Text(w io.Writer, r *scan.Result, s Style, home, version string) {
 				p("    %s... and %d more (see --json)%s\n", s.dim, len(r.MCPServers)-15, s.reset)
 				break
 			}
-			p("    %-15s %-24s %s%s%s\n", m.Client, truncate(m.Name, 24), s.dim, truncate(m.CommandLine(), 60), s.reset)
+			p("    %-15s %-24s %s%s%s\n", m.Client, truncate(m.Name, 24), s.dim, tilde(m.Path), s.reset)
 		}
 		p("\n")
 	}
