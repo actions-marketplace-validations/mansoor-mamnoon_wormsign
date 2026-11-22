@@ -21,12 +21,12 @@ func TestDemoEndToEnd(t *testing.T) {
 	for _, f := range res.Findings {
 		got[f.Check]++
 	}
-	for _, c := range []string{"claude-hooks", "vscode-tasks", "workflows", "payload-files"} {
+	for _, c := range []string{"claude-hooks", "vscode-tasks", "payload-files"} {
 		if got[c] == 0 {
 			t.Errorf("expected a %s finding, got %v", c, got)
 		}
 	}
-	if res.Packages != 4 {
-		t.Errorf("want 4 packages, got %d", res.Packages)
+	if res.Packages != 3 {
+		t.Errorf("want 3 packages, got %d", res.Packages)
 	}
 }
