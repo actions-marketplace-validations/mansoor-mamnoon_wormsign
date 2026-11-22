@@ -27,7 +27,7 @@ func Workflow(path string) []Finding {
 	f := func(sev Severity, title, evidence string) Finding {
 		return Finding{
 			Severity: sev, Check: "workflows", Title: title, Path: path, Evidence: truncate(evidence, 200),
-			Fix: "Check `git log -p -- " + filepath.ToSlash(filepath.Join(".github/workflows", name)) + "`; if you didn't write it, delete it and rotate every repo/org secret.",
+			Fix: "Not yours? Delete it and rotate every repo and org secret.",
 		}
 	}
 	var out []Finding

@@ -66,7 +66,7 @@ func packagePayloads(pkgDir string) []Finding {
 			Severity: Critical, Check: "payload-files",
 			Title: what + " found inside an installed package",
 			Path:  filepath.Join(pkgDir, e.Name()),
-			Fix:   "Delete node_modules, reinstall from a clean lockfile, and rotate every credential this machine holds.",
+			Fix:   "Delete node_modules, reinstall from a clean lockfile, rotate credentials.",
 		})
 	}
 	return out

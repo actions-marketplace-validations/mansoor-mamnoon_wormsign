@@ -81,8 +81,8 @@ func ClaudeHooks(path string, projectLevel bool) []Finding {
 	if bad.n > 0 {
 		out = append(out, Finding{
 			Severity: bad.sev, Check: "claude-hooks", Path: path, Evidence: bad.evidence,
-			Title: fmt.Sprintf("Claude Code hooks (%d × %s): %s", bad.n, strings.Join(bad.events, ", "), joinReasons(bad.reasons)),
-			Fix:   "If you didn't add these, delete them and treat this machine's credentials as exposed.",
+			Title: fmt.Sprintf("Claude Code %s hook %s", strings.Join(bad.events, "/"), joinReasons(bad.reasons)),
+			Fix:   "Not yours? Delete the hook and treat this machine's credentials as stolen.",
 		})
 	}
 	if auto.n > 0 {
@@ -124,7 +124,7 @@ func VSCodeTasks(path string) []Finding {
 			Check:    "vscode-tasks",
 			Path:     path,
 			Evidence: truncate(strings.TrimSpace(cmd), 200),
-			Fix:      "Remove the task (or its runOn: folderOpen) unless you added it deliberately.",
+			Fix:      "Not yours? Delete the task.",
 		}
 		if len(reasons) > 0 {
 			f.Title = fmt.Sprintf("VS Code task %q runs on folder open and %s", t.Label, joinReasons(reasons))
