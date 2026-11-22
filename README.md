@@ -33,8 +33,8 @@ the advice is to check whether you installed an affected version.
 
 That check has to cover every project on the machine, plus global installs and the npx cache
 that MCP servers run from. And upgrading the package does not remove what the worm installed:
-a Claude Code `SessionStart` hook, a VS Code task that runs when a folder opens, an MCP
-server, a LaunchAgent. wormsign checks package versions and those locations in one pass.
+a Claude Code `SessionStart` hook, a VS Code task or dev container command that runs when a
+folder opens, an MCP server, a LaunchAgent. wormsign checks package versions and those locations in one pass.
 
 It is a triage tool. A malicious version in a lockfile does not prove the code ran, and a
 clean result means no known indicators were found in the files checked.
@@ -97,7 +97,7 @@ with `--strict`), and 2 when the scan was incomplete or a usage error occurred. 
 |---|---|
 | Packages | npm, yarn, pnpm, Bun text, poetry, uv, pdm and pipenv lockfiles; pinned requirements files; installed `node_modules` (including pnpm's store) and Python `site-packages`; global npm, pnpm and Bun installs, the npx cache, pipx and uv tools. Versions are looked up in [OSV](https://osv.dev); malware has `MAL-*` ids. |
 | Coding agents | Claude Code hooks; MCP servers configured for Claude Code, Claude Desktop, Cursor, VS Code, Windsurf, Codex, Gemini CLI, Zed, Kiro and others. |
-| Editors | VS Code tasks with `runOn: folderOpen`. |
+| Editors | VS Code tasks with `runOn: folderOpen`; dev container lifecycle commands, including `initializeCommand`, which runs on the host. |
 | CI | Workflows that serialize every secret or run issue or discussion text on a self-hosted runner. |
 | Autostart | macOS LaunchAgents, systemd user units, XDG autostart, crontab and shell startup files. |
 | Payloads | Campaign filenames (`setup_bun.js`, `bun_environment.js`) in installed packages and known staging locations. File contents and hashes are not verified. |
