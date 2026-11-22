@@ -3,6 +3,7 @@ package discover
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 	"testing"
@@ -59,13 +60,34 @@ func TestMissingRootIsReported(t *testing.T) {
 	}
 }
 
-func TestDepthLimitIsReported(t *testing.T) {
+// A directory past the depth limit is a coverage note, not a failed check:
+// editor extensions routinely nest type stubs 15+ levels below $HOME.
+func TestDepthLimitIsSkippedNotError(t *testing.T) {
 	root := t.TempDir()
 	if err := os.MkdirAll(filepath.Join(root, "a", "b"), 0700); err != nil {
 		t.Fatal(err)
 	}
 	inv := Walk(Options{Roots: []string{root}, MaxDepth: 1})
-	if len(inv.Errors) != 1 || !strings.Contains(inv.Errors[0].Error(), "maximum scan depth") {
-		t.Fatalf("depth errors: %v", inv.Errors)
+	if len(inv.Errors) != 0 {
+		t.Fatalf("depth limit must not be an error: %v", inv.Errors)
+	}
+	if len(inv.Skipped) != 1 || !strings.HasSuffix(inv.Skipped[0], filepath.Join("a", "b")) {
+		t.Fatalf("skipped: %v", inv.Skipped)
+	}
+}
+
+func TestUnreadableDirIsSkippedNotError(t *testing.T) {
+	if runtime.GOOS == "windows" || os.Getuid() == 0 {
+		t.Skip("needs POSIX permissions and a non-root user")
+	}
+	root := t.TempDir()
+	locked := filepath.Join(root, "locked")
+	if err := os.Mkdir(locked, 0o000); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { os.Chmod(locked, 0o700) })
+	inv := Walk(Options{Roots: []string{root}})
+	if len(inv.Errors) != 0 || len(inv.Skipped) != 1 {
+		t.Fatalf("errors %v skipped %v", inv.Errors, inv.Skipped)
 	}
 }

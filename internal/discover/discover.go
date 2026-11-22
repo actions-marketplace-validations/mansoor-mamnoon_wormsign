@@ -5,7 +5,6 @@ package discover
 
 import (
 	"context"
-	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -23,7 +22,11 @@ type Inventory struct {
 	Workflows   []string // .github/workflows/*.yml
 	NodeModules []string // every top-level node_modules dir found
 	DirsWalked  int
-	Errors      []error
+	// Skipped lists directories that were not read: deeper than MaxDepth,
+	// or unreadable (permission denied, removed during the walk). They are
+	// coverage notes, not failures.
+	Skipped []string
+	Errors  []error
 }
 
 // Options controls the walk.
@@ -83,7 +86,11 @@ func Walk(opt Options) *Inventory {
 				return err
 			}
 			if err != nil {
-				inv.Errors = append(inv.Errors, err)
+				if path != root && (os.IsPermission(err) || os.IsNotExist(err)) {
+					inv.Skipped = append(inv.Skipped, path)
+				} else {
+					inv.Errors = append(inv.Errors, err)
+				}
 				if d != nil && d.IsDir() {
 					return fs.SkipDir
 				}
@@ -108,7 +115,7 @@ func Walk(opt Options) *Inventory {
 					opt.Progress.Add(1)
 				}
 				if strings.Count(path, string(os.PathSeparator))-base > opt.MaxDepth {
-					inv.Errors = append(inv.Errors, fmt.Errorf("%s: maximum scan depth %d reached", path, opt.MaxDepth))
+					inv.Skipped = append(inv.Skipped, path)
 					return fs.SkipDir
 				}
 				// A depth-limited directory was not scanned and can still be
