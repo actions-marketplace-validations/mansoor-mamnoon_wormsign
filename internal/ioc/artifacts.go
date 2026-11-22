@@ -9,8 +9,8 @@ import (
 // payloadFiles are filenames worms drop into the root of an infected
 // package. They have no legitimate reason to exist there.
 var payloadFiles = map[string]string{
-	"setup_bun.js":        "Shai-Hulud 2.0 loader",
-	"bun_environment.js":  "Shai-Hulud 2.0 payload",
+	"setup_bun.js":        "Shai-Hulud-family worm loader",
+	"bun_environment.js":  "Shai-Hulud-family worm payload",
 	"truffleSecrets.json": "Shai-Hulud stolen-secrets dump",
 	"actionsSecrets.json": "Shai-Hulud stolen-secrets dump",
 }
