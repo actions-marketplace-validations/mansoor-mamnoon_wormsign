@@ -98,6 +98,9 @@ func TestAction(t *testing.T) {
 		{"dash path", "-project with spaces", "--offline", 0, "wormsign"},
 		{"missing diagnostics", "missing", "--offline", 2, "wormsign:"},
 		{"glob flags", ".", "--offline *", 2, "wormsign:"},
+		{"multiline flags", ".", "--offline\n--strict", 0, "wormsign"},
+		{"log failure", ".", "--offline", 2, "wormsign"},
+		{"summary failure", ".", "--offline", 2, ""},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			dir := t.TempDir()
@@ -117,7 +120,17 @@ func TestAction(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
+			if tc.name == "log failure" {
+				if err := os.Mkdir(filepath.Join(dir, "wormsign.txt"), 0755); err != nil {
+					t.Fatal(err)
+				}
+			}
 			summary := filepath.Join(dir, "summary")
+			if tc.name == "summary failure" {
+				if err := os.Mkdir(summary, 0755); err != nil {
+					t.Fatal(err)
+				}
+			}
 			cmd := exec.Command("bash", "--noprofile", "--norc", "-eo", "pipefail", "-c", script)
 			cmd.Dir = dir
 			cmd.Env = append(os.Environ(), "RUNNER_TEMP="+dir, "SCAN_PATH="+tc.path, "SCAN_ARGS="+tc.args, "GITHUB_STEP_SUMMARY="+summary)
@@ -131,6 +144,9 @@ func TestAction(t *testing.T) {
 				}
 			}
 			report, readErr := os.ReadFile(summary)
+			if tc.name == "summary failure" && code == tc.code {
+				return
+			}
 			if code != tc.code || readErr != nil || !strings.Contains(string(report), tc.want) {
 				t.Fatalf("exit %d want %d, summary %q (%v), output %s", code, tc.code, report, readErr, out)
 			}

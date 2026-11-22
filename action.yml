@@ -34,11 +34,15 @@ runs:
         set -f
         scan_args=($SCAN_ARGS)
         "$RUNNER_TEMP/wormsign/wormsign" --project --no-color "${scan_args[@]}" -- "$SCAN_PATH" 2>&1 | tee "$RUNNER_TEMP/wormsign.txt"
-        code=${PIPESTATUS[0]}
+        statuses=("${PIPESTATUS[@]}")
+        code=${statuses[0]}
+        if [ "${statuses[1]}" -ne 0 ] && [ "$code" -eq 0 ]; then
+          code=2
+        fi
         {
           echo '### wormsign'
           echo '```text'
-          cat "$RUNNER_TEMP/wormsign.txt"
+          cat "$RUNNER_TEMP/wormsign.txt" || exit 2
           echo '```'
-        } >> "$GITHUB_STEP_SUMMARY"
+        } >> "$GITHUB_STEP_SUMMARY" || exit 2
         exit "$code"
