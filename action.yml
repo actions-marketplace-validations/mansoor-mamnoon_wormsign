@@ -1,0 +1,32 @@
+name: wormsign
+description: Fail the build if a lockfile pins a known-malicious package, or the repo carries worm persistence (agent hooks, auto-run tasks, backdoored workflows).
+author: mansoor-mamnoon
+branding:
+  icon: shield
+  color: red
+inputs:
+  path:
+    description: Directory to scan.
+    default: "."
+  version:
+    description: wormsign version to install (e.g. 0.1.0). Defaults to the latest release.
+    default: ""
+  args:
+    description: Extra flags, e.g. "--strict".
+    default: ""
+runs:
+  using: composite
+  steps:
+    - name: Install wormsign
+      shell: bash
+      env:
+        WORMSIGN_VERSION: ${{ inputs.version }}
+        WORMSIGN_INSTALL_DIR: ${{ runner.temp }}/wormsign
+      run: sh "$GITHUB_ACTION_PATH/install.sh"
+    - name: Scan
+      shell: bash
+      env:
+        SCAN_PATH: ${{ inputs.path }}
+        SCAN_ARGS: ${{ inputs.args }}
+      # SCAN_ARGS is intentionally unquoted so multiple flags split.
+      run: '"$RUNNER_TEMP/wormsign/wormsign" --project --no-color $SCAN_ARGS "$SCAN_PATH"'
