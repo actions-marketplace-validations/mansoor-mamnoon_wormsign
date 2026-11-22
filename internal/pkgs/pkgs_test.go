@@ -1,6 +1,8 @@
 package pkgs
 
 import (
+	"os"
+	"path/filepath"
 	"reflect"
 	"testing"
 )
@@ -169,5 +171,31 @@ func TestParserFor(t *testing.T) {
 		if _, k := ParserFor(path); k != kind {
 			t.Errorf("%s: got %q want %q", path, k, kind)
 		}
+	}
+}
+
+func TestScanNodeModules(t *testing.T) {
+	root := t.TempDir()
+	write := func(rel, body string) {
+		p := filepath.Join(root, rel)
+		os.MkdirAll(filepath.Dir(p), 0o755)
+		os.WriteFile(p, []byte(body), 0o644)
+	}
+	write("a/package.json", `{"name":"a","version":"1.0.0"}`)
+	write("@s/b/package.json", `{"name":"@s/b","version":"2.0.0"}`)
+	write("a/node_modules/c/package.json", `{"name":"c","version":"3.0.0"}`)
+	write(".bin/x", "")
+	if g, w := names(ScanNodeModules(root)), []string{"@s/b@2.0.0", "a@1.0.0", "c@3.0.0"}; !reflect.DeepEqual(g, w) {
+		t.Errorf("got %q want %q", g, w)
+	}
+}
+
+func TestScanSitePackages(t *testing.T) {
+	root := t.TempDir()
+	for _, d := range []string{"Requests-2.31.0.dist-info", "six-1.16.0-py3.11.egg-info", "requests"} {
+		os.Mkdir(filepath.Join(root, d), 0o755)
+	}
+	if g, w := names(ScanSitePackages(root)), []string{"requests@2.31.0", "six@1.16.0"}; !reflect.DeepEqual(g, w) {
+		t.Errorf("got %q want %q", g, w)
 	}
 }
