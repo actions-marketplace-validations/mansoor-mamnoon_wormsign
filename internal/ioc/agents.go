@@ -16,6 +16,12 @@ import (
 // SessionStart hooks to project .claude/settings.json so their payload runs
 // every time someone opens the repo in Claude Code.
 func ClaudeHooks(path string, projectLevel bool) []Finding {
+	findings, _ := CheckClaudeHooks(path, projectLevel)
+	return findings
+}
+
+// CheckClaudeHooks inspects hooks and returns read or configuration errors.
+func CheckClaudeHooks(path string, projectLevel bool) ([]Finding, error) {
 	var s struct {
 		Hooks map[string][]struct {
 			Matcher string `json:"matcher"`
@@ -25,8 +31,8 @@ func ClaudeHooks(path string, projectLevel bool) []Finding {
 			} `json:"hooks"`
 		} `json:"hooks"`
 	}
-	if readJSONC(path, &s) != nil {
-		return nil
+	if err := readJSONC(path, &s); err != nil {
+		return nil, err
 	}
 	events := make([]string, 0, len(s.Hooks))
 	for e := range s.Hooks {
@@ -88,12 +94,18 @@ func ClaudeHooks(path string, projectLevel bool) []Finding {
 			Fix:   "Confirm a teammate added this on purpose (git log -- .claude/settings.json).",
 		})
 	}
-	return out
+	return out, nil
 }
 
 // VSCodeTasks flags tasks that auto-run when a folder is opened. Worms inject
 // these into .vscode/tasks.json so opening the repo re-infects the machine.
 func VSCodeTasks(path string) []Finding {
+	findings, _ := CheckVSCodeTasks(path)
+	return findings
+}
+
+// CheckVSCodeTasks inspects automatic tasks and returns configuration errors.
+func CheckVSCodeTasks(path string) ([]Finding, error) {
 	var s struct {
 		Tasks []struct {
 			Label      string                 `json:"label"`
@@ -102,8 +114,8 @@ func VSCodeTasks(path string) []Finding {
 			RunOptions struct{ RunOn string } `json:"runOptions"`
 		} `json:"tasks"`
 	}
-	if readJSONC(path, &s) != nil {
-		return nil
+	if err := readJSONC(path, &s); err != nil {
+		return nil, err
 	}
 	var out []Finding
 	for _, t := range s.Tasks {
@@ -128,7 +140,7 @@ func VSCodeTasks(path string) []Finding {
 		}
 		out = append(out, f)
 	}
-	return out
+	return out, nil
 }
 
 // MCPServer is one configured MCP server.
@@ -188,6 +200,12 @@ func MCPConfigPaths(home string) map[string]string {
 
 // ReadMCP returns the servers declared in one MCP config file.
 func ReadMCP(path, client string) []MCPServer {
+	servers, _ := CheckMCP(path, client)
+	return servers
+}
+
+// CheckMCP inventories servers and returns read or configuration errors.
+func CheckMCP(path, client string) ([]MCPServer, error) {
 	if strings.HasSuffix(path, ".toml") {
 		return readCodexTOML(path, client)
 	}
@@ -204,8 +222,8 @@ func ReadMCP(path, client string) []MCPServer {
 			MCPServers map[string]mcpEntry `json:"mcpServers"`
 		} `json:"projects"`
 	}
-	if readJSONC(path, &raw) != nil {
-		return nil
+	if err := readJSONC(path, &raw); err != nil {
+		return nil, err
 	}
 	var out []MCPServer
 	add := func(m map[string]mcpEntry, scope string) {
@@ -230,15 +248,15 @@ func ReadMCP(path, client string) []MCPServer {
 		add(p.MCPServers, filepath.Base(proj))
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].Name < out[j].Name })
-	return out
+	return out, nil
 }
 
 var tomlServer = regexp.MustCompile(`^\[mcp_servers\.("?)([^"\]]+)("?)\]$`)
 
-func readCodexTOML(path, client string) []MCPServer {
+func readCodexTOML(path, client string) ([]MCPServer, error) {
 	f, err := os.Open(path)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 	defer f.Close()
 	var out []MCPServer
@@ -275,7 +293,7 @@ func readCodexTOML(path, client string) []MCPServer {
 			}
 		}
 	}
-	return out
+	return out, sc.Err()
 }
 
 // MCPFindings flags MCP servers whose launch command looks malicious. A

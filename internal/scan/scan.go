@@ -3,6 +3,7 @@ package scan
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -161,21 +162,28 @@ func Run(ctx context.Context, opt Options) *Result {
 		for _, name := range []string{"settings.json", "settings.local.json"} {
 			p := filepath.Join(opt.Home, ".claude", name)
 			globalClaude[p] = true
-			res.Findings = append(res.Findings, ioc.ClaudeHooks(p, false)...)
+			findings, err := ioc.CheckClaudeHooks(p, false)
+			res.addConfigFindings(p, findings, err, true)
 		}
 		for path, client := range ioc.MCPConfigPaths(opt.Home) {
-			servers = append(servers, ioc.ReadMCP(path, client)...)
+			found, err := ioc.CheckMCP(path, client)
+			res.addConfigFindings(path, nil, err, true)
+			servers = append(servers, found...)
 		}
 	}
 	for _, p := range inv.Configs {
 		dir, base := filepath.Base(filepath.Dir(p)), filepath.Base(p)
 		switch {
 		case dir == ".claude" && !globalClaude[p]:
-			res.Findings = append(res.Findings, ioc.ClaudeHooks(p, true)...)
+			findings, err := ioc.CheckClaudeHooks(p, true)
+			res.addConfigFindings(p, findings, err, false)
 		case dir == ".vscode" && base == "tasks.json":
-			res.Findings = append(res.Findings, ioc.VSCodeTasks(p)...)
+			findings, err := ioc.CheckVSCodeTasks(p)
+			res.addConfigFindings(p, findings, err, false)
 		case base == ".mcp.json" || base == "mcp.json":
-			servers = append(servers, ioc.ReadMCP(p, mcpOwner(p, opt.Home))...)
+			found, err := ioc.CheckMCP(p, mcpOwner(p, opt.Home))
+			res.addConfigFindings(p, nil, err, false)
+			servers = append(servers, found...)
 		}
 	}
 	servers = dedupeServers(servers)
@@ -200,6 +208,13 @@ func Run(ctx context.Context, opt Options) *Result {
 	}
 	res.Duration = time.Since(start)
 	return res
+}
+
+func (r *Result) addConfigFindings(path string, findings []ioc.Finding, err error, optional bool) {
+	r.Findings = append(r.Findings, findings...)
+	if err != nil && !(optional && os.IsNotExist(err)) {
+		r.ScanErrors = append(r.ScanErrors, fmt.Sprintf("Could not inspect %s: %v", path, err))
+	}
 }
 
 func locate(hits []osv.Hit, sources []pkgs.Source) []MalHit {

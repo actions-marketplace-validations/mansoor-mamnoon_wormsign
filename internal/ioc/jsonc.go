@@ -1,7 +1,9 @@
 package ioc
 
 import (
+	"bytes"
 	"encoding/json"
+	"errors"
 	"os"
 )
 
@@ -63,5 +65,9 @@ func readJSONC(path string, v any) error {
 	if err != nil {
 		return err
 	}
-	return json.Unmarshal(StripJSONC(data), v)
+	data = bytes.TrimSpace(StripJSONC(data))
+	if len(data) == 0 || data[0] != '{' {
+		return errors.New("expected a JSON object")
+	}
+	return json.Unmarshal(data, v)
 }
