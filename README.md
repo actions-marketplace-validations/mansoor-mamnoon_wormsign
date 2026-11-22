@@ -93,15 +93,21 @@ by file presence and key names; their values never appear in the output.
 
 ## CI
 
-The GitHub Action fails a build when a lockfile pins a known-malicious version or the
-repository contains worm persistence:
+Add this file as `.github/workflows/wormsign.yml`. The build fails when a lockfile pins a
+known-malicious version or the repository contains worm persistence, and the report appears in
+the job summary.
 
 ```yaml
-- uses: actions/checkout@v4
-- uses: mansoor-mamnoon/wormsign@v0
-  # with:
-  #   path: .
-  #   args: --strict   # fail on warnings too
+name: wormsign
+on: [push, pull_request]
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: mansoor-mamnoon/wormsign@v0
+        # with:
+        #   args: --strict   # fail on warnings too
 ```
 
 `wormsign --project .` runs the same scan locally. It reads only the given directory and
