@@ -45,7 +45,7 @@ var skipNames = map[string]bool{
 	"__pycache__": true, ".mypy_cache": true, ".pytest_cache": true, ".ruff_cache": true, ".tox": true,
 	"Library": true, "Applications": true, "Movies": true, "Music": true, "Pictures": true,
 	"OneDrive": true, "Dropbox": true, "Google Drive": true, "Creative Cloud Files": true,
-	"DerivedData": true, "Pods": true,
+	"DerivedData": true, "Pods": true, "AppData": true, "scoop": true,
 }
 
 func skipDir(name string) bool {
