@@ -2,7 +2,7 @@
 
 <h1 align="center">wormsign</h1>
 
-<p align="center">Checks whether an npm or PyPI worm reached your machine,<br>and lists the credentials to rotate if one did.</p>
+<p align="center">Checks your machine for npm and PyPI worms like Shai-Hulud and ChainDrop.</p>
 
 <p align="center">
   <a href="https://github.com/mansoor-mamnoon/wormsign/actions/workflows/ci.yml"><img src="https://github.com/mansoor-mamnoon/wormsign/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
@@ -10,113 +10,73 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT"></a>
 </p>
 
+When ChainDrop got into 444 npm packages in August 2026, the advice was to check whether
+you'd installed an affected version. On a laptop that's been in use for a while, that means
+hundreds of lockfiles, plus global installs and the npx cache that MCP servers run from.
+Upgrading the package also doesn't undo what it did. These worms add a Claude Code hook, a
+VS Code task or a LaunchAgent so they run again later.
+
+wormsign does that check in one pass. It looks up every installed package version in OSV's
+list of known malware, then reads the config files and startup entries worms use to come
+back. If it finds something, it lists the credentials on your machine that you'd need to
+rotate.
+
 ```sh
 brew install mansoor-mamnoon/tap/wormsign
 wormsign
 ```
 
-One Go binary with no dependencies, account or API key. It reads files under your home
-directory and a few system locations. It never runs package scripts or changes your files.
-A scan of 29,000 directories and 4,350 packages takes about 7 seconds on a laptop.
+A scan of my laptop (about 4,500 packages) takes 7 seconds. `wormsign --demo` scans a fake
+infected project in a temp folder, so you can see a detection without having one:
 
-To see a detection without being infected, run `wormsign --demo`. It builds a harmless fake
-project in a temp directory and scans only that:
-
-<p align="center"><img src="docs/demo.gif" alt="wormsign --demo: DETECTED verdict for the malicious keyv 6.0.0 release, a Claude Code SessionStart hook and a VS Code folder-open task, followed by a credential rotation checklist" width="900"></p>
-
-## Why
-
-Since September 2025, self-spreading npm worms (Shai-Hulud, Mini Shai-Hulud, SANDWORM_MODE,
-ChainDrop) have stolen npm and GitHub tokens and republished themselves into hundreds of
-packages. ChainDrop infected 444 packages in four hours in August 2026. After each outbreak
-the advice is to check whether you installed an affected version.
-
-That check has to cover every project on the machine, plus global installs and the npx cache
-that MCP servers run from. And upgrading the package does not remove what the worm installed:
-a Claude Code `SessionStart` hook, a VS Code task or dev container command that runs when a
-folder opens, an MCP server, a LaunchAgent. wormsign checks package versions and those locations in one pass.
-
-It is a triage tool. A malicious version in a lockfile does not prove the code ran, and a
-clean result means no known indicators were found in the files checked.
+<p align="center"><img src="docs/demo.gif" alt="wormsign --demo output: DETECTED, the malicious keyv 6.0.0 release, a Claude Code hook, a VS Code task, and a list of credentials to rotate" width="900"></p>
 
 ## Install
 
-```sh
-brew install mansoor-mamnoon/tap/wormsign
-```
-
-The install script downloads a [release binary](https://github.com/mansoor-mamnoon/wormsign/releases)
-for macOS or Linux and checks its SHA-256 checksum:
+Homebrew is above. You can also download a release binary with this script, which checks
+the file's SHA-256 before installing it:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/mansoor-mamnoon/wormsign/main/install.sh | sh
 ```
 
-With Go 1.22 or later:
+Or build it with Go 1.22 or later:
 
 ```sh
 go install github.com/mansoor-mamnoon/wormsign@latest
 ```
 
-Windows binaries are on the releases page. wormsign is not published to npm. A tool that
-checks for npm compromise should not need `npm install` to run.
+Windows binaries are on the [releases page](https://github.com/mansoor-mamnoon/wormsign/releases).
+It isn't published to npm.
 
-To pin a version, set `WORMSIGN_VERSION=0.1.5` for the install script or use
-`go install github.com/mansoor-mamnoon/wormsign@v0.1.5`.
+## What it looks at
 
-## Usage
+Packages: lockfiles from npm, yarn, pnpm, Bun, pip, poetry, uv and pipenv, the installed
+`node_modules` and `site-packages` folders, global installs, the npx cache, and pipx and uv
+tools. Each version is checked against [OSV](https://osv.dev), which lists known malware under
+`MAL-` IDs.
 
-```sh
-wormsign                     # home directory plus machine-wide checks
-wormsign ~/code              # one directory plus machine-wide checks
-wormsign --project .         # only this directory; for CI
-wormsign --offline           # local checks only; no OSV lookup
-wormsign --json              # machine-readable results
-```
+Persistence: Claude Code hooks, MCP server configs (Claude, Cursor, VS Code, Windsurf, Codex
+and others), VS Code tasks and dev container commands that run when a folder opens, GitHub
+workflows that dump secrets, LaunchAgents, systemd user units, crontab and shell startup
+files. It also looks for payload files that known worms drop, such as `setup_bun.js`.
 
-Put flags before paths. Each report starts with a verdict:
+A known worm file, domain or package version is reported as critical. Things that are only
+suspicious, like `curl | sh` in a startup task, are warnings, since plenty of normal tools do
+that too. Each report starts with CLEAN, REVIEW, DETECTED or PARTIAL. PARTIAL means part of
+the scan failed or you used `--offline`.
 
-| Verdict | Meaning |
-|---|---|
-| CLEAN | No known indicators in the files checked. |
-| REVIEW | Warnings to inspect. They can be legitimate. |
-| DETECTED | A known-malicious package version or a critical local indicator. This alone does not establish that code ran or credentials were stolen. |
-| PARTIAL | A lookup or lockfile parse failed, or `--offline` skipped the package check. |
-
-A detection takes precedence over an incomplete scan, and the report still lists what failed.
-Directories deeper than 14 levels or unreadable are skipped and counted in one line; `--json`
-lists them.
-
-Exit status is 0 when nothing critical is found, 1 for a critical finding (or any warning
-with `--strict`), and 2 when the scan was incomplete or a usage error occurred. Choosing
-`--offline` does not by itself cause exit 2. `--demo` always exits 0.
-
-## What it checks
-
-| Check | Coverage |
-|---|---|
-| Packages | npm, yarn, pnpm, Bun text, poetry, uv, pdm and pipenv lockfiles; pinned requirements files; installed `node_modules` (including pnpm's store) and Python `site-packages`; global npm, pnpm and Bun installs, the npx cache, pipx and uv tools. Versions are looked up in [OSV](https://osv.dev); malware has `MAL-*` ids. |
-| Coding agents | Claude Code hooks; MCP servers configured for Claude Code, Claude Desktop, Cursor, VS Code, Windsurf, Codex, Gemini CLI, Zed, Kiro and others. |
-| Editors | VS Code tasks with `runOn: folderOpen`; dev container lifecycle commands, including `initializeCommand`, which runs on the host. |
-| CI | Workflows that serialize every secret or run issue or discussion text on a self-hosted runner. |
-| Autostart | macOS LaunchAgents, systemd user units, XDG autostart, crontab and shell startup files. |
-| Payloads | Campaign filenames (`setup_bun.js`, `bun_environment.js`) in installed packages and known staging locations. File contents and hashes are not verified. |
-| Credentials | Which credential files and secret-named environment variables exist, for the rotation checklist. Values are never read into the output. |
-
-A known campaign file, domain or package is critical. Generic patterns (a download piped to a
-shell, inline `node -e`, a tunneling service, a secret scanner) are warnings, even several at
-once, because developer tools use them too.
+A bad version in a lockfile doesn't prove the code ran, and a clean result only means nothing
+known turned up.
 
 ## Privacy
 
-Online scans send each package's ecosystem, name and version to `api.osv.dev`. That can
-include private package names from your lockfiles. Paths, file contents and credential values
-are not sent, and there is no telemetry. `--offline` makes no network requests.
+Online scans send each package's name and version to api.osv.dev. That can include private
+package names. Nothing else leaves your machine, and there's no telemetry. `--offline` skips
+the lookup.
 
-The terminal report shows the command a flagged hook, task or autostart entry runs, with
-token, key and password values masked, so you can tell whether it is yours. JSON output and
-`--project` runs leave commands out, since those end up in files and CI logs. Reports do
-include local paths and the names of credential files; check them before sharing one.
+The terminal report shows the command behind a flagged hook or task with tokens and passwords
+masked, so you can tell whether it's yours. JSON output and CI runs leave commands out.
 
 ## CI
 
@@ -131,76 +91,46 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: mansoor-mamnoon/wormsign@v0
-        # with:
-        #   args: --strict      # fail on warnings too
-        #   version: 0.1.5      # pin the scanner
 ```
 
-The action runs `wormsign --project` on the repository and writes the report to the job
-summary. The build fails when a lockfile pins a known-malicious version or the repository
-contains worm persistence.
+The action scans the repository only, fails the build on a critical finding, and writes the
+report to the job summary. Pass `args: --strict` to fail on warnings too.
 
-## Other tools
-
-`npm audit` reports vulnerabilities for one npm project.
-[OSV-Scanner](https://github.com/google/osv-scanner) scans dependencies across many more
-ecosystems. Campaign-specific scanners such as
-[shai-hulud-2-scanner](https://github.com/CyberDracula/shai-hulud-2-scanner) check for one
-worm's indicators. wormsign covers every campaign in OSV's malware feed for npm and PyPI and
-adds the agent, editor and autostart checks. It does not replace a forensic investigation.
-
-## Flags
+## Options
 
 ```text
-  --demo        scan a harmless fake infected project
-  --project     only the given paths; skip machine-wide checks and the credential list
-  --offline     skip the OSV lookup
-  --json        print results as JSON
-  --strict      exit 1 on warnings too
-  --all-vulns   also report ordinary vulnerabilities
-  --no-globals  skip global installs and caches
-  --no-color    disable color and the progress spinner
-  --version     print the version
+--demo        scan a fake infected project
+--project     scan only the given folders, skipping machine-wide checks (used by CI)
+--offline     skip the OSV lookup
+--json        print JSON
+--strict      exit 1 on warnings too
+--all-vulns   also report ordinary vulnerabilities
+--no-globals  skip global installs and caches
 ```
+
+It exits 0 when nothing critical is found, 1 when something is, and 2 when the scan couldn't
+finish, for example when OSV is unreachable.
 
 ## Limits
 
-- Detection depends on OSV's malware feed and the local patterns in this repository. A
-  campaign reported today may not be covered yet.
-- The search skips caches, toolchains, cloud-synced folders and selected OS folders, and does
-  not follow directory symlinks.
-- Bun's binary `bun.lockb` is not parsed. The lockfile parsers cover the formats listed above,
-  not full YAML or TOML. Unpinned dependencies cannot be checked by version.
-- Local checks match patterns and filenames. They can flag legitimate tools and miss renamed
-  or obfuscated payloads.
-- Windows autostart locations are not checked yet.
-- It scans once. It does not monitor the machine or remove anything. If a payload ran, rotate
-  credentials from a different machine.
+It only knows about malware that's in OSV and the patterns in this repo, so a campaign
+reported this morning may not be covered yet. The pattern checks can flag legitimate tools
+and miss renamed payloads. It doesn't parse Bun's binary `bun.lockb`, and it doesn't check
+Windows startup entries yet. It scans once and doesn't remove anything. If something ran,
+rotate your credentials from a different machine.
 
-Please report false positives, misses and new campaign indicators in
-[issues](https://github.com/mansoor-mamnoon/wormsign/issues), with secrets removed.
+If it flags something harmless or misses something real, please
+[open an issue](https://github.com/mansoor-mamnoon/wormsign/issues).
 
 ## Development
 
 ```sh
-gofmt -l .          # CI formats with Go 1.27; older gofmt aligns some maps differently
-go vet ./...
 go test -race ./...
 go run . --demo
 ```
 
-`scripts/render-demo.py <binary>` records a real `--demo` run and renders `docs/demo.gif`.
-It needs network access and [agg](https://github.com/asciinema/agg).
+CI checks formatting with Go 1.27's `gofmt`. `scripts/render-demo.py` re-records
+`docs/demo.gif` and needs [agg](https://github.com/asciinema/agg).
 
-## Changelog
-
-- 0.1.5: checks dev container lifecycle commands (`initializeCommand` runs on the host).
-- 0.1.4: skipped directories no longer mark a scan as partial; scans are four times faster;
-  reports show the redacted command behind each finding; the demo shows the OSV hit again.
-- 0.1.3: stricter handling of incomplete scans, OSV pagination, safer severities for generic
-  patterns, terminal-escape sanitizing.
-- 0.1.2 and 0.1.1: verdict-first report; GitHub Action writes to the job summary.
-- 0.1.0: first release.
-
-Full notes are on the [releases page](https://github.com/mansoor-mamnoon/wormsign/releases).
-License: [MIT](LICENSE).
+I wrote wormsign with a lot of help from Claude Code. Releases and their notes are on the
+[releases page](https://github.com/mansoor-mamnoon/wormsign/releases). MIT license.
