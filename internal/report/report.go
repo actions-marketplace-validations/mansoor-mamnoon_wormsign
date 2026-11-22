@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"time"
@@ -70,9 +71,17 @@ func Text(w io.Writer, r *scan.Result, s Style, home, version string) {
 		}
 		fmt.Fprintf(w, format, a...)
 	}
+	// The walker resolves symlinked roots (macOS /var is /private/var), so
+	// match home in both its given and resolved forms.
+	homes := []string{home}
+	if resolved, err := filepath.EvalSymlinks(home); err == nil && resolved != home {
+		homes = append(homes, resolved)
+	}
 	tilde := func(path string) string {
-		if home != "" && (path == home || strings.HasPrefix(path, home+string(os.PathSeparator))) {
-			return "~" + path[len(home):]
+		for _, h := range homes {
+			if h != "" && (path == h || strings.HasPrefix(path, h+string(os.PathSeparator))) {
+				return "~" + path[len(h):]
+			}
 		}
 		return path
 	}
