@@ -1,5 +1,5 @@
-name: wormsign
-description: Fail the build if a lockfile pins a known-malicious package, or the repo carries worm persistence (agent hooks, auto-run tasks, backdoored workflows).
+name: wormsign scan
+description: Fail CI when a lockfile pins a known-malicious npm or PyPI version, or the repo contains worm persistence (agent hooks, auto-run tasks, backdoored workflows).
 author: mansoor-mamnoon
 branding:
   icon: shield
@@ -9,10 +9,10 @@ inputs:
     description: Directory to scan.
     default: "."
   version:
-    description: wormsign version to install (e.g. 0.1.0). Defaults to the latest release.
+    description: wormsign version to install, for example 0.1.1. Defaults to the latest release.
     default: ""
   args:
-    description: Extra flags, e.g. "--strict".
+    description: Extra flags, for example "--strict" to fail on warnings too.
     default: ""
 runs:
   using: composite
@@ -28,5 +28,15 @@ runs:
       env:
         SCAN_PATH: ${{ inputs.path }}
         SCAN_ARGS: ${{ inputs.args }}
-      # SCAN_ARGS is intentionally unquoted so multiple flags split.
-      run: '"$RUNNER_TEMP/wormsign/wormsign" --project --no-color $SCAN_ARGS "$SCAN_PATH"'
+      run: |
+        set +e
+        # SCAN_ARGS is unquoted on purpose so several flags split into words.
+        "$RUNNER_TEMP/wormsign/wormsign" --project --no-color $SCAN_ARGS "$SCAN_PATH" | tee "$RUNNER_TEMP/wormsign.txt"
+        code=${PIPESTATUS[0]}
+        {
+          echo '### wormsign'
+          echo '```text'
+          cat "$RUNNER_TEMP/wormsign.txt"
+          echo '```'
+        } >> "$GITHUB_STEP_SUMMARY"
+        exit "$code"
