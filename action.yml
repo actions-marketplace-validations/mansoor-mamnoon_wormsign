@@ -12,7 +12,7 @@ inputs:
     description: wormsign version to install, for example 0.1.1. Defaults to the latest release.
     default: ""
   args:
-    description: Extra flags, for example "--strict" to fail on warnings too.
+    description: Whitespace-separated extra flags, for example "--strict". Shell quoting and glob expansion are not supported.
     default: ""
 runs:
   using: composite
@@ -30,8 +30,10 @@ runs:
         SCAN_ARGS: ${{ inputs.args }}
       run: |
         set +e
-        # SCAN_ARGS is unquoted on purpose so several flags split into words.
-        "$RUNNER_TEMP/wormsign/wormsign" --project --no-color $SCAN_ARGS "$SCAN_PATH" | tee "$RUNNER_TEMP/wormsign.txt"
+        # Split flags on whitespace, without expanding wildcard filenames.
+        set -f
+        scan_args=($SCAN_ARGS)
+        "$RUNNER_TEMP/wormsign/wormsign" --project --no-color "${scan_args[@]}" -- "$SCAN_PATH" 2>&1 | tee "$RUNNER_TEMP/wormsign.txt"
         code=${PIPESTATUS[0]}
         {
           echo '### wormsign'

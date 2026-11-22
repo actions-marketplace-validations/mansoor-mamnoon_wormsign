@@ -4,6 +4,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"flag"
 	"fmt"
@@ -115,7 +116,12 @@ func main() {
 			os.Exit(2)
 		}
 	} else {
-		report.Text(os.Stdout, res, report.NewStyle(!*noColor && report.ColorEnabled(os.Stdout)), home, version)
+		out := bufio.NewWriter(os.Stdout)
+		report.Text(out, res, report.NewStyle(!*noColor && report.ColorEnabled(os.Stdout)), home, version)
+		if err := out.Flush(); err != nil {
+			fmt.Fprintln(os.Stderr, "wormsign:", err)
+			os.Exit(2)
+		}
 	}
 	if *demoMode {
 		if !*jsonOut {
