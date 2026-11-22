@@ -37,6 +37,9 @@ directories and 235 lockfiles takes about 12 seconds on a laptop.
 
 ## Other ways to install
 
+The latest release is [v0.1.2](https://github.com/mansoor-mamnoon/wormsign/releases/tag/v0.1.2).
+Every method below installs it by default.
+
 Download the release binary. The script verifies its SHA-256 checksum; it is under 60 lines.
 
 ```sh
@@ -50,6 +53,13 @@ go install github.com/mansoor-mamnoon/wormsign@latest
 ```
 
 Windows builds are on the [releases page](https://github.com/mansoor-mamnoon/wormsign/releases).
+
+To pin a version, set it explicitly:
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/mansoor-mamnoon/wormsign/main/install.sh | WORMSIGN_VERSION=0.1.2 sh
+go install github.com/mansoor-mamnoon/wormsign@v0.1.2
+```
 
 wormsign is not published to npm. A tool that checks for npm compromise should not need
 `npm install` to run. It is one static Go binary with no dependencies.
@@ -108,7 +118,10 @@ jobs:
       - uses: mansoor-mamnoon/wormsign@v0
         # with:
         #   args: --strict   # fail on warnings too
+        #   version: 0.1.2   # pin the scanner; defaults to the latest release
 ```
+
+`@v0` follows the newest 0.x release of the action. Use `@v0.1.2` to pin the action itself.
 
 `wormsign --project .` runs the same scan locally. It reads only the given directory and
 skips global installs, user-level agent configs, autostart entries and the credential list.
@@ -153,6 +166,16 @@ Please report false positives, misses and new campaign indicators in
   means no known indicators were found.
 - wormsign is a triage tool. It does not monitor the machine. If it reports a compromise,
   rotate credentials from a different machine.
+
+## Changelog
+
+- 0.1.2 (2026-11-22): shorter GitHub Action description for the Marketplace. Scanner unchanged.
+- 0.1.1 (2026-11-22): the report starts with a verdict (CLEAN, REVIEW or COMPROMISED), lists
+  findings with their paths, and ends with numbered steps. The action writes its report to the
+  job summary.
+- 0.1.0 (2026-11-22): first release.
+
+Full notes are on the [releases page](https://github.com/mansoor-mamnoon/wormsign/releases).
 
 ## License
 
