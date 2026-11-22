@@ -38,6 +38,7 @@ func main() {
 		offline   = flag.Bool("offline", false, "skip the OSV.dev lookup (no network); local checks only")
 		vulns     = flag.Bool("all-vulns", false, "also report ordinary vulnerabilities, not just malware")
 		noGlobals = flag.Bool("no-globals", false, "skip global installs and the npx cache")
+		project   = flag.Bool("project", false, "scan only the given paths; skip machine-wide checks (for CI)")
 		strict    = flag.Bool("strict", false, "exit non-zero on warnings too")
 		noColor   = flag.Bool("no-color", false, "disable colored output")
 		showVer   = flag.Bool("version", false, "print version")
@@ -70,7 +71,7 @@ func main() {
 		}
 	}
 
-	opts := scan.Options{Roots: roots, Home: home, Offline: *offline, IncludeVulns: *vulns, NoGlobals: *noGlobals}
+	opts := scan.Options{Roots: roots, Home: home, Offline: *offline, IncludeVulns: *vulns, NoGlobals: *noGlobals, ProjectOnly: *project}
 	if *demoMode {
 		dir, err := demo.Create()
 		if err != nil {

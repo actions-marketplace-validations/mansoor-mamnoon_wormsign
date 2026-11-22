@@ -97,6 +97,9 @@ func Text(w io.Writer, r *scan.Result, s Style, home, version string) {
 
 	// IOC sections.
 	for _, sec := range sections {
+		if r.ProjectOnly && sec.label == "Autostart" {
+			continue
+		}
 		var fs []ioc.Finding
 		for _, f := range r.Findings {
 			for _, c := range sec.checks {
