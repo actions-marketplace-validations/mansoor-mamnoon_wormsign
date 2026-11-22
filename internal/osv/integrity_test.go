@@ -49,14 +49,19 @@ func TestNullBatchResultCannotPass(t *testing.T) {
 func TestLaterBatchFailurePreservesMalware(t *testing.T) {
 	for _, failure := range []string{"status", "length"} {
 		t.Run(failure, func(t *testing.T) {
-			calls := 0
+			// Batches run concurrently, so the server picks its answer from
+			// the batch size: the full 1000-package batch succeeds and the
+			// trailing 1-package batch fails.
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.URL.Path != "/v1/querybatch" {
 					w.Write([]byte(`{"id":"MAL-known"}`))
 					return
 				}
-				calls++
-				if calls == 1 {
+				var req struct {
+					Queries []query `json:"queries"`
+				}
+				json.NewDecoder(r.Body).Decode(&req)
+				if len(req.Queries) == 1000 {
 					results := make([]map[string]any, 1000)
 					for i := range results {
 						results[i] = map[string]any{}
@@ -87,14 +92,19 @@ func TestLaterBatchFailurePreservesMalware(t *testing.T) {
 func TestInvalidResultDoesNotDiscardLaterPackageMalware(t *testing.T) {
 	for _, invalid := range []string{`{"next_page_token":"same"}`, "null"} {
 		t.Run(invalid, func(t *testing.T) {
-			calls := 0
+			// Batches run concurrently, so the server picks its answer from
+			// the batch size: the full 1000-package batch succeeds and the
+			// trailing 1-package batch fails.
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				if r.URL.Path != "/v1/querybatch" {
 					w.Write([]byte(`{"id":"MAL-known"}`))
 					return
 				}
-				calls++
-				if calls == 1 {
+				var req struct {
+					Queries []query `json:"queries"`
+				}
+				json.NewDecoder(r.Body).Decode(&req)
+				if len(req.Queries) == 1000 {
 					w.Write([]byte(`{"results":[{"next_page_token":"same"},{"next_page_token":"more"}]}`))
 					return
 				}
