@@ -81,25 +81,31 @@ func ParseTOMLPackages(data []byte) ([]Package, error) {
 
 // stripTOMLComment ignores # inside basic and literal strings.
 func stripTOMLComment(line string) string {
- var quote rune
- escaped := false
- for i, r := range line {
-  if escaped {
-   escaped = false
-   continue
-  }
-  if quote == '"' && r == '\\' {
-   escaped = true
-   continue
-  }
-  if quote != 0 {
-   if r == quote { quote = 0 }
-   continue
-  }
-  if r == '"' || r == '\'' { quote = r }
-  if r == '#' { return line[:i] }
- }
- return line
+	var quote rune
+	escaped := false
+	for i, r := range line {
+		if escaped {
+			escaped = false
+			continue
+		}
+		if quote == '"' && r == '\\' {
+			escaped = true
+			continue
+		}
+		if quote != 0 {
+			if r == quote {
+				quote = 0
+			}
+			continue
+		}
+		if r == '"' || r == '\'' {
+			quote = r
+		}
+		if r == '#' {
+			return line[:i]
+		}
+	}
+	return line
 }
 
 // ParsePipfileLock handles Pipfile.lock JSON.
