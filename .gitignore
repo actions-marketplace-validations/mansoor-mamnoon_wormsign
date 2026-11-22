@@ -1,0 +1,4 @@
+/wormsign
+/dist/
+*.test
+coverage.out
