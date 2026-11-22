@@ -26,8 +26,13 @@ func ParseNPMLock(data []byte) ([]Package, error) {
 		if path == "" || p.Link {
 			continue
 		}
+		i := strings.LastIndex(path, "node_modules/")
+		if i < 0 {
+			// Workspace records are local projects, not registry dependencies.
+			continue
+		}
 		name := p.Name
-		if i := strings.LastIndex(path, "node_modules/"); i >= 0 {
+		if name == "" {
 			name = path[i+len("node_modules/"):]
 		}
 		if name == "" {
@@ -48,7 +53,13 @@ type npmV1Dep struct {
 
 func walkV1(deps map[string]npmV1Dep, out *[]Package) {
 	for name, d := range deps {
-		*out = append(*out, Package{NPM, name, d.Version})
+		version := d.Version
+		if strings.HasPrefix(version, "npm:") {
+			if actual, resolved, ok := splitNameVersion(strings.TrimPrefix(version, "npm:")); ok {
+				name, version = actual, resolved
+			}
+		}
+		*out = append(*out, Package{NPM, name, version})
 		walkV1(d.Dependencies, out)
 	}
 }
