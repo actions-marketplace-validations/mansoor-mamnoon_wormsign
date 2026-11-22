@@ -29,7 +29,7 @@ func TestOfflineDemoAndRevocationAdvice(t *testing.T) {
 	result.Credentials = demo.Credentials()
 	var out bytes.Buffer
 	report.Text(&out, result, report.NewStyle(false), dir, "test")
-	if !strings.Contains(out.String(), "Revoke GitHub CLI access") || strings.Contains(out.String(), "gh auth refresh") {
+	if !strings.Contains(out.String(), "Revoke at github.com/settings/applications") || strings.Contains(out.String(), "gh auth refresh") {
 		t.Fatalf("rotation advice must revoke compromised credentials, not refresh scopes: %s", out.String())
 	}
 }
