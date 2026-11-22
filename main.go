@@ -33,7 +33,7 @@ func init() {
 	}
 }
 
-const usage = `wormsign — did a supply-chain worm get this machine?
+const usage = `wormsign: did a supply-chain worm get this machine?
 
 Usage:
   wormsign [flags] [path ...]
@@ -60,7 +60,7 @@ func main() {
 	flag.Usage = func() {
 		fmt.Fprint(os.Stderr, usage)
 		flag.PrintDefaults()
-		fmt.Fprint(os.Stderr, "\nExit status: 0 clean, 1 something critical found, 2 usage/runtime error.\n")
+		fmt.Fprint(os.Stderr, "\nExit status: 0 nothing critical found, 1 critical finding, 2 error or incomplete scan\n(for example OSV.dev unreachable or a lockfile that could not be parsed).\n")
 	}
 	flag.Parse()
 	if *showVer {
@@ -102,8 +102,9 @@ func main() {
 	defer cancel()
 
 	var progress atomic.Int64
-	stopSpinner := spinner(&progress, !*jsonOut && !*noColor && report.ColorEnabled(os.Stderr))
-	opts.Progress = &progress
+	var stage atomic.Value
+	stopSpinner := spinner(&progress, &stage, !*jsonOut && !*noColor && report.ColorEnabled(os.Stderr))
+	opts.Progress, opts.Stage = &progress, &stage
 	res := scan.Run(ctx, opts)
 	stopSpinner()
 	if *demoMode {
@@ -135,8 +136,9 @@ func main() {
 	os.Exit(res.ExitCode(*strict))
 }
 
-// spinner shows a live directory count on stderr while the walk runs.
-func spinner(n *atomic.Int64, enabled bool) func() {
+// spinner shows progress on stderr: a live directory count during the walk,
+// then the current stage.
+func spinner(n *atomic.Int64, stage *atomic.Value, enabled bool) func() {
 	if !enabled {
 		return func() {}
 	}
@@ -153,7 +155,11 @@ func spinner(n *atomic.Int64, enabled bool) func() {
 				fmt.Fprint(os.Stderr, "\r\033[K")
 				return
 			case <-t.C:
-				fmt.Fprintf(os.Stderr, "\r\033[K%c scanning... %d dirs", frames[i%len(frames)], n.Load())
+				msg := fmt.Sprintf("scanning... %d dirs", n.Load())
+				if s, ok := stage.Load().(string); ok {
+					msg = s + "..."
+				}
+				fmt.Fprintf(os.Stderr, "\r\033[K%c %s", frames[i%len(frames)], msg)
 			}
 		}
 	}()
