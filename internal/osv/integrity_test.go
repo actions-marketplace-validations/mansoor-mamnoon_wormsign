@@ -26,7 +26,8 @@ func TestInvalidAdvisoryCannotEraseMalware(t *testing.T) {
 			client := New()
 			client.BaseURL = srv.URL
 			hits, err := client.Check(context.Background(), []pkgs.Package{{Name: "bad", Version: "1.0.0", Ecosystem: pkgs.NPM}})
-			if err == nil || len(hits) != 1 || !hits[0].Advisories[0].Malicious {
+			// The hit must survive; losing the summary text is not a failure.
+			if err != nil || len(hits) != 1 || !hits[0].Advisories[0].Malicious {
 				t.Fatalf("malformed detail erased evidence: hits=%+v err=%v", hits, err)
 			}
 		})

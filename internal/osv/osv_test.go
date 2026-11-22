@@ -90,10 +90,10 @@ func TestMalwareAliasOnLaterPage(t *testing.T) {
 				if len(req.Queries) != 1 || req.Queries[0].PageToken != "more" || req.Queries[0].Package.Name != "bad" {
 					t.Errorf("wrong next page query: %+v", req.Queries)
 				}
-				w.Write([]byte(`{"results":[{"vulns":[{"id":"GHSA-malware"}]}]}`))
+				w.Write([]byte(`{"results":[{"vulns":[{"id":"MAL-2026-test"}]}]}`))
 			}
-		case "/v1/vulns/GHSA-malware":
-			w.Write([]byte(`{"id":"GHSA-malware","aliases":["MAL-2026-test"],"summary":"malware"}`))
+		case "/v1/vulns/MAL-2026-test":
+			w.Write([]byte(`{"id":"MAL-2026-test","summary":"malware"}`))
 		default:
 			http.NotFound(w, r)
 		}
@@ -103,7 +103,7 @@ func TestMalwareAliasOnLaterPage(t *testing.T) {
 	c.BaseURL = srv.URL
 	hits, err := c.Check(context.Background(), []pkgs.Package{{Ecosystem: pkgs.NPM, Name: "good", Version: "1.0.0"}, {Ecosystem: pkgs.NPM, Name: "bad", Version: "1.0.0"}})
 	if err != nil || len(hits) != 1 || hits[0].Package.Name != "bad" || !hits[0].Advisories[0].Malicious {
-		t.Fatalf("lost paginated malware alias: hits=%+v err=%v", hits, err)
+		t.Fatalf("lost malware on a later page: hits=%+v err=%v", hits, err)
 	}
 }
 
@@ -119,8 +119,8 @@ func TestAdvisoryFailurePreservesKnownMalware(t *testing.T) {
 	c := New()
 	c.BaseURL = srv.URL
 	hits, err := c.Check(context.Background(), []pkgs.Package{{Ecosystem: pkgs.NPM, Name: "bad", Version: "1.0.0"}})
-	if err == nil || len(hits) != 1 || !hits[0].Advisories[0].Malicious {
-		t.Fatalf("want malware plus incomplete lookup: hits=%+v err=%v", hits, err)
+	if err != nil || len(hits) != 1 || !hits[0].Advisories[0].Malicious {
+		t.Fatalf("want the malware hit without a lookup error: hits=%+v err=%v", hits, err)
 	}
 }
 
@@ -151,5 +151,28 @@ func TestCanceledRequestDoesNotRetry(t *testing.T) {
 	}
 	if time.Since(start) > time.Second {
 		t.Fatal("canceled request waited for retry backoff")
+	}
+}
+
+// Fetching every CVE record to look for malware aliases made scans take
+// 30s instead of 5s. Only MAL-* records are fetched unless --all-vulns.
+func TestOnlyMalwareDetailsAreFetched(t *testing.T) {
+	var fetched []string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/v1/querybatch" {
+			w.Write([]byte(`{"results":[{"vulns":[{"id":"MAL-1"},{"id":"GHSA-a"},{"id":"CVE-b"}]}]}`))
+			return
+		}
+		fetched = append(fetched, r.URL.Path)
+		w.Write([]byte(`{"id":"MAL-1","summary":"malware"}`))
+	}))
+	defer srv.Close()
+	c := New()
+	c.BaseURL = srv.URL
+	if _, err := c.Check(context.Background(), []pkgs.Package{{Ecosystem: pkgs.NPM, Name: "x", Version: "1.0.0"}}); err != nil {
+		t.Fatal(err)
+	}
+	if len(fetched) != 1 || fetched[0] != "/v1/vulns/MAL-1" {
+		t.Fatalf("fetched %v, want only the MAL record", fetched)
 	}
 }
