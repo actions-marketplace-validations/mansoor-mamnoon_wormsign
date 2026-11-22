@@ -55,6 +55,20 @@ func TestExplicitRootBeyondEarlierDepthLimit(t *testing.T) {
  if got := inv.AllPackages(); len(got)!=1 {t.Fatalf("explicit root skipped: %v errors %v",got,inv.Errors)}
 }
 
+func TestPNPMInstalledTransitivePackages(t *testing.T) {
+ t.Parallel()
+ root := t.TempDir()
+ writeAuditFile(t, root, "node_modules/.pnpm/direct@1.0.0/node_modules/direct/package.json", `{"name":"direct","version":"1.0.0"}`)
+ writeAuditFile(t, root, "node_modules/.pnpm/transitive@2.0.0/node_modules/transitive/package.json", `{"name":"transitive","version":"2.0.0"}`)
+ if err := os.Symlink(".pnpm/direct@1.0.0/node_modules/direct", filepath.Join(root,"node_modules","direct")); err != nil {t.Fatal(err)}
+ if err := os.Symlink("../../transitive@2.0.0/node_modules/transitive", filepath.Join(root,"node_modules",".pnpm","direct@1.0.0","node_modules","transitive")); err != nil {t.Fatal(err)}
+ inv := Walk(Options{Roots: []string{root}})
+ inv.ScanProjectNodeModules()
+ var got []string
+ for _, p := range inv.AllPackages(){got=append(got,p.String())}
+ if !reflect.DeepEqual(got, []string{"direct@1.0.0","transitive@2.0.0"}) {t.Fatalf("packages %v",got)}
+}
+
 func TestRequirementsOnlyExactPins(t *testing.T) {
  t.Parallel()
  root := t.TempDir()

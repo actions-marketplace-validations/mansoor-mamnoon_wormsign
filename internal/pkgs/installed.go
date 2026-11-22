@@ -25,6 +25,18 @@ func scanNodeModules(dir string, out *[]Package, depth int) {
 	}
 	for _, e := range entries {
 		name := e.Name()
+		if name == ".pnpm" && e.IsDir() {
+			// pnpm keeps transitive packages in its virtual store, not
+			// beneath each direct dependency's own node_modules.
+			store := filepath.Join(dir, name)
+			packages, _ := os.ReadDir(store)
+			for _, p := range packages {
+				if p.IsDir() {
+					scanNodeModules(filepath.Join(store, p.Name(), "node_modules"), out, depth+1)
+				}
+			}
+			continue
+		}
 		if strings.HasPrefix(name, ".") || !isDirish(dir, e) {
 			continue
 		}
