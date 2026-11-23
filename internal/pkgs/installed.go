@@ -2,8 +2,9 @@ package pkgs
 
 import (
 	"encoding/json"
+	"io/fs"
 	"os"
-	"path/filepath"
+	"path"
 	"strings"
 )
 
@@ -11,15 +12,20 @@ import (
 // including scoped packages and nested node_modules.
 func ScanNodeModules(dir string) []Package {
 	var out []Package
-	scanNodeModules(dir, &out, 0)
+	root, err := os.OpenRoot(dir)
+	if err != nil {
+		return nil
+	}
+	defer root.Close()
+	scanNodeModules(root.FS(), ".", &out, 0)
 	return out
 }
 
-func scanNodeModules(dir string, out *[]Package, depth int) {
+func scanNodeModules(tree fs.FS, dir string, out *[]Package, depth int) {
 	if depth > 32 {
 		return
 	}
-	entries, err := os.ReadDir(dir)
+	entries, err := fs.ReadDir(tree, dir)
 	if err != nil {
 		return
 	}
@@ -28,56 +34,57 @@ func scanNodeModules(dir string, out *[]Package, depth int) {
 		if name == ".pnpm" && e.IsDir() {
 			// pnpm keeps transitive packages in its virtual store, not
 			// beneath each direct dependency's own node_modules.
-			store := filepath.Join(dir, name)
-			packages, _ := os.ReadDir(store)
+			store := path.Join(dir, name)
+			packages, _ := fs.ReadDir(tree, store)
 			for _, p := range packages {
 				if p.IsDir() {
-					scanNodeModules(filepath.Join(store, p.Name(), "node_modules"), out, depth+1)
+					scanNodeModules(tree, path.Join(store, p.Name(), "node_modules"), out, depth+1)
 				}
 			}
 			continue
 		}
-		if strings.HasPrefix(name, ".") || !isDirish(dir, e) {
+		if strings.HasPrefix(name, ".") || !isDirish(tree, dir, e) {
 			continue
 		}
 		if strings.HasPrefix(name, "@") {
-			scoped, _ := os.ReadDir(filepath.Join(dir, name))
+			scoped, _ := fs.ReadDir(tree, path.Join(dir, name))
 			for _, s := range scoped {
-				if isDirish(filepath.Join(dir, name), s) {
-					readPkg(filepath.Join(dir, name, s.Name()), out, depth)
+				if isDirish(tree, path.Join(dir, name), s) {
+					readPkg(tree, path.Join(dir, name, s.Name()), out, depth)
 				}
 			}
 			continue
 		}
-		readPkg(filepath.Join(dir, name), out, depth)
+		readPkg(tree, path.Join(dir, name), out, depth)
 	}
 }
 
-func isDirish(parent string, e os.DirEntry) bool {
+func isDirish(tree fs.FS, parent string, e os.DirEntry) bool {
 	if e.IsDir() {
 		return true
 	}
 	if e.Type()&os.ModeSymlink != 0 {
-		fi, err := os.Stat(filepath.Join(parent, e.Name()))
+		fi, err := fs.Stat(tree, path.Join(parent, e.Name()))
 		return err == nil && fi.IsDir()
 	}
 	return false
 }
 
-func readPkg(pkgDir string, out *[]Package, depth int) {
-	data, err := os.ReadFile(filepath.Join(pkgDir, "package.json"))
-	if err == nil {
+func readPkg(tree fs.FS, pkgDir string, out *[]Package, depth int) {
+	manifest := path.Join(pkgDir, "package.json")
+	if info, err := fs.Stat(tree, manifest); err == nil && info.Mode().IsRegular() {
 		var pj struct {
 			Name    string `json:"name"`
 			Version string `json:"version"`
 		}
-		if json.Unmarshal(data, &pj) == nil && pj.Name != "" {
+		if data, err := fs.ReadFile(tree, manifest); err == nil && json.Unmarshal(data, &pj) == nil && pj.Name != "" {
 			*out = append(*out, Package{NPM, pj.Name, pj.Version})
 		}
 	}
-	nested := filepath.Join(pkgDir, "node_modules")
-	if fi, err := os.Stat(nested); err == nil && fi.IsDir() {
-		scanNodeModules(nested, out, depth+1)
+
+	nested := path.Join(pkgDir, "node_modules")
+	if fi, err := fs.Stat(tree, nested); err == nil && fi.IsDir() {
+		scanNodeModules(tree, nested, out, depth+1)
 	}
 }
 
