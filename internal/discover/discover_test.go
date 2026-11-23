@@ -12,13 +12,13 @@ import (
 func TestWalk(t *testing.T) {
 	root := t.TempDir()
 	files := map[string]string{
-		"app/package-lock.json":                 `{"lockfileVersion":3,"packages":{"node_modules/a":{"version":"1.0.0"}}}`,
-		"app/node_modules/a/package.json":       `{"name":"a","version":"1.0.0"}`,
-		"app/node_modules/b/package-lock.json":  `{"lockfileVersion":3,"packages":{"node_modules/zzz":{"version":"9.9.9"}}}`,
-		"app/.vscode/tasks.json":                `{}`,
-		"app/.claude/settings.json":             `{}`,
-		"app/.github/workflows/ci.yml":          `on: push`,
-		"app/docs/workflows/not-a-workflow.yml": ``,
+		"app/package-lock.json":                                                    `{"lockfileVersion":3,"packages":{"node_modules/a":{"version":"1.0.0"}}}`,
+		"app/node_modules/a/package.json":                                          `{"name":"a","version":"1.0.0"}`,
+		"app/node_modules/b/package-lock.json":                                     `{"lockfileVersion":3,"packages":{"node_modules/zzz":{"version":"9.9.9"}}}`,
+		"app/.vscode/tasks.json":                                                   `{}`,
+		"app/.claude/settings.json":                                                `{}`,
+		"app/.github/workflows/ci.yml":                                             `on: push`,
+		"app/docs/workflows/not-a-workflow.yml":                                    ``,
 		"py/.venv/lib/python3.12/site-packages/requests-2.31.0.dist-info/METADATA": ``,
 		"py/uv.lock":                               "[[package]]\nname = \"idna\"\nversion = \"3.6\"\n",
 		"Library/ignored/package-lock.json":        `{"lockfileVersion":3,"packages":{"node_modules/x":{"version":"1.0.0"}}}`,

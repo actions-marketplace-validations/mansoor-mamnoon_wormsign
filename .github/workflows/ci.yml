@@ -21,8 +21,8 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go }}
-      - name: gofmt
-        if: runner.os != 'Windows' && matrix.go == '1.27.x'
+      - name: Check formatting with minimum Go version
+        if: runner.os != 'Windows' && matrix.go == '1.22.x'
         run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
       - run: go vet ./...
       - name: Test minimum Go version
