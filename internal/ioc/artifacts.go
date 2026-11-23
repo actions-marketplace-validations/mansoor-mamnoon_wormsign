@@ -108,6 +108,6 @@ func TempArtifacts(home string) []Finding {
 }
 
 func isDir(p string) bool {
-	fi, err := os.Stat(p)
+	fi, err := os.Lstat(p)
 	return err == nil && fi.IsDir()
 }

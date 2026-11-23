@@ -86,6 +86,11 @@ func TestPNPMInstalledTransitivePackages(t *testing.T) {
 	if err := os.Symlink("../../transitive@2.0.0/node_modules/transitive", filepath.Join(root, "node_modules", ".pnpm", "direct@1.0.0", "node_modules", "transitive")); err != nil {
 		t.Fatal(err)
 	}
+	outside := t.TempDir()
+	writeAuditFile(t, outside, "package.json", `{"name":"outside","version":"1.0.0"}`)
+	if err := os.Symlink(outside, filepath.Join(root, "node_modules", "outside")); err != nil {
+		t.Fatal(err)
+	}
 	inv := Walk(Options{Roots: []string{root}})
 	inv.ScanProjectNodeModules()
 	var got []string
