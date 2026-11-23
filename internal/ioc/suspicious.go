@@ -1,6 +1,7 @@
 package ioc
 
 import (
+	"net/url"
 	"regexp"
 	"strings"
 )
@@ -22,10 +23,41 @@ var suspiciousRules = []struct {
 	{regexp.MustCompile(`(?i)\bgh\s+auth\s+token\b|\bnpm\s+token\b|_authToken|\.npmrc|\.git-credentials|\.aws/credentials|id_rsa|id_ed25519`), "reads credentials", false},
 	{regexp.MustCompile(`(?i)\btrufflehog\b|truffler|truffleSecrets`), "runs a secret scanner", false},
 	{regexp.MustCompile(`(?i)setup_bun\.js|bun_environment\.js|bun-dl-|tmp\.dpkg\.lock|gh-token-monitor`), "references a known worm file", true},
-	{regexp.MustCompile(`(?i)webhook\.site|pipedream\.net|requestbin|ngrok(-free)?\.(io|app)|trycloudflare\.com|discord(app)?\.com/api/webhooks|api\.telegram\.org/bot|transfer\.sh|paste(bin)?\.(com|ee)`), "uses a service that can receive exfiltrated data", false},
-	{regexp.MustCompile(`(?i)npm-cache\.com|pypi-get\.com|js-mirror\.com`), "talks to a known worm C2 domain", true},
 	{regexp.MustCompile(`(?i)\b(printenv|env)\s*(\||>)|process\.env\)|JSON\.stringify\(process\.env`), "dumps environment variables", false},
 	{regexp.MustCompile(`(?i)\bchmod\s+\+x\b.*&&`), "makes a dropped file executable and runs it", false},
+}
+
+// Commands may contain either full URLs or bare hostnames.
+func domainIndicators(cmd string) (service, campaign bool) {
+	for _, word := range strings.FieldsFunc(cmd, func(r rune) bool {
+		return strings.ContainsRune(" \t\r\n\"'()<>|`;", r)
+	}) {
+		if key, value, ok := strings.Cut(word, "="); ok && !strings.ContainsAny(key, "/:?") {
+			word = value
+		}
+		if !strings.Contains(word, "://") {
+			word = "//" + strings.TrimPrefix(word, "//")
+		}
+		u, err := url.Parse(word)
+		if err != nil {
+			continue
+		}
+		host := strings.TrimSuffix(strings.ToLower(u.Hostname()), ".")
+		for suffix := host; suffix != ""; {
+			switch suffix {
+			case "npm-cache.com", "pypi-get.com", "js-mirror.com":
+				campaign = true
+			case "webhook.site", "pipedream.net", "requestbin.com", "requestbin.net", "ngrok.io", "ngrok.app", "ngrok-free.io", "ngrok-free.app", "trycloudflare.com", "transfer.sh", "pastebin.com", "pastebin.ee", "paste.com", "paste.ee":
+				service = true
+			case "discord.com", "discordapp.com":
+				service = service || strings.HasPrefix(u.Path, "/api/webhooks")
+			case "api.telegram.org":
+				service = service || strings.HasPrefix(u.Path, "/bot")
+			}
+			_, suffix, _ = strings.Cut(suffix, ".")
+		}
+	}
+	return service, campaign
 }
 
 // Suspicious returns the reasons a command line looks malicious, if any.
@@ -38,7 +70,13 @@ func Suspicious(cmd string) []string {
 // Keep them at warning level even when several match.
 func classify(cmd string) ([]string, Severity) {
 	var reasons []string
-	strong := false
+	service, strong := domainIndicators(cmd)
+	if service {
+		reasons = append(reasons, "uses a service that can receive exfiltrated data")
+	}
+	if strong {
+		reasons = append(reasons, "talks to a known worm C2 domain")
+	}
 	for _, r := range suspiciousRules {
 		if r.re.MatchString(cmd) {
 			reasons = append(reasons, r.reason)
