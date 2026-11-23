@@ -72,6 +72,27 @@ func TestCLI(t *testing.T) {
 	})
 }
 
+func TestCLIReturnsPartialWhenCoverageIsIncomplete(t *testing.T) {
+	bin := buildCLI(t)
+	dir := t.TempDir()
+	deep := dir
+	for i := 0; i < 16; i++ {
+		deep = filepath.Join(deep, "nested")
+	}
+	if err := os.MkdirAll(deep, 0755); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(bin, "--offline", "--project", "--no-color", dir)
+	out, err := cmd.CombinedOutput()
+	exitErr, ok := err.(*exec.ExitError)
+	if !ok || exitErr.ExitCode() != 2 {
+		t.Fatalf("expected partial exit 2, got %v: %s", err, out)
+	}
+	if !strings.Contains(string(out), "! PARTIAL") || !strings.Contains(string(out), "Did not inspect") {
+		t.Fatalf("missing coverage warning: %s", out)
+	}
+}
+
 func TestAction(t *testing.T) {
 	if runtime.GOOS == "windows" {
 		t.Skip("composite action requires a POSIX runner")
@@ -81,7 +102,11 @@ func TestAction(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	_, body, ok := strings.Cut(string(data), "      run: |\n")
+	_, scanStep, ok := strings.Cut(string(data), "    - name: Scan\n")
+	if !ok {
+		t.Fatal("missing action scan step")
+	}
+	_, body, ok := strings.Cut(scanStep, "      run: |\n")
 	if !ok {
 		t.Fatal("missing action scan script")
 	}

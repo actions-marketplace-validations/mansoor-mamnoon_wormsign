@@ -140,6 +140,9 @@ func Text(w io.Writer, r *scan.Result, s Style, home, version string) {
 		for _, err := range r.ScanErrors {
 			p("    %s\n", tilde(err))
 		}
+		for _, path := range r.Skipped {
+			p("    Did not inspect %s (too deep or not readable)\n", tilde(path))
+		}
 		p("\n")
 	}
 
@@ -227,10 +230,6 @@ func Text(w io.Writer, r *scan.Result, s Style, home, version string) {
 	}
 	if len(clean) > 0 && !r.Incomplete() {
 		p("  %s✓%s %sNo matching indicators: %s%s\n\n", s.green, s.reset, s.dim, strings.Join(clean, ", "), s.reset)
-	}
-
-	if n := len(r.Skipped); n > 0 {
-		p("  %sSkipped %s (too deep or not readable); listed in --json.%s\n\n", s.dim, count(n, "directory"), s.reset)
 	}
 
 	// 5. MCP inventory: injected servers are a recent worm trick, and only a

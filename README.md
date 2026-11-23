@@ -16,9 +16,9 @@ hundreds of lockfiles, plus global installs and the npx cache that MCP servers r
 Upgrading the package also doesn't undo what it did. These worms add a Claude Code hook, a
 VS Code task or a LaunchAgent so they run again later.
 
-wormsign does that check in one pass. It looks up every installed package version in OSV's
-list of known malware, then reads the config files and startup entries worms use to come
-back. If it finds something, it lists the credentials on your machine that you'd need to
+wormsign does that check in one pass. It looks up the package versions it discovers in
+OSV's list of known malware, then reads the config files and startup entries worms use to
+come back. If it finds something, it lists the credentials on your machine that you'd need to
 rotate.
 
 ```sh
@@ -47,7 +47,8 @@ go install github.com/mansoor-mamnoon/wormsign@latest
 ```
 
 Windows binaries are on the [releases page](https://github.com/mansoor-mamnoon/wormsign/releases).
-It isn't published to npm.
+On Windows, package and project-config scanning works, but startup-entry checks are not yet
+implemented. It isn't published to npm.
 
 ## What it looks at
 
@@ -90,11 +91,18 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: mansoor-mamnoon/wormsign@v0
+      - uses: actions/setup-go@v5
+        with:
+          go-version: "1.22.x"
+      - uses: mansoor-mamnoon/wormsign@v0.1.6
 ```
 
 The action scans the repository only, fails the build on a critical finding, and writes the
-report to the job summary. Pass `args: --strict` to fail on warnings too.
+report to the job summary. Pass `args: --strict` to fail on warnings too. By default it builds
+the scanner from the exact Action revision, which requires Go 1.22 or later. Pin a full
+release tag (or, for the strongest supply-chain guarantee, its commit SHA); the moving `v0`
+tag is available for users who prefer automatic upgrades. Set `version` to a wormsign release
+number if you prefer a prebuilt scanner.
 
 ## Options
 
@@ -115,8 +123,11 @@ finish, for example when OSV is unreachable.
 
 It only knows about malware that's in OSV and the patterns in this repo, so a campaign
 reported this morning may not be covered yet. The pattern checks can flag legitimate tools
-and miss renamed payloads. It doesn't parse Bun's binary `bun.lockb`, and it doesn't check
-Windows startup entries yet. It scans once and doesn't remove anything. If something ran,
+and miss renamed payloads. To keep a home-directory scan bounded, wormsign skips caches,
+VCS internals, toolchains, cloud-synced folders and directories deeper than 14 levels; use an
+explicit path to scan a skipped project. Unreadable or depth-limited directories make the
+result PARTIAL. It doesn't parse Bun's binary `bun.lockb`, and it doesn't check Windows
+startup entries yet. It scans once and doesn't remove anything. If something ran,
 rotate your credentials from a different machine.
 
 If it flags something harmless or misses something real, please

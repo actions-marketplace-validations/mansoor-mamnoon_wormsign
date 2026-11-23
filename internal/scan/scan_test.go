@@ -62,6 +62,21 @@ func TestIncompleteScansCannotPass(t *testing.T) {
 	}
 }
 
+func TestSkippedDirectoriesMakeScanIncomplete(t *testing.T) {
+	dir := t.TempDir()
+	deep := filepath.Join(dir, "a", "b")
+	if err := os.MkdirAll(deep, 0700); err != nil {
+		t.Fatal(err)
+	}
+	res := Run(context.Background(), Options{Roots: []string{dir}, Home: dir, Offline: true, ProjectOnly: true})
+	// The default depth is larger than this fixture, so exercise the result
+	// contract with the same inventory state returned by a limited walk.
+	res.Skipped = []string{deep}
+	if !res.Incomplete() || res.ExitCode(false) != 2 {
+		t.Fatalf("scan with unread directories must be partial: %+v", res)
+	}
+}
+
 func TestCriticalDetectionTakesPrecedenceOverErrors(t *testing.T) {
 	res := &Result{OSVError: "unavailable", Findings: []ioc.Finding{{Severity: ioc.Critical}}}
 	if res.ExitCode(false) != 1 {

@@ -61,7 +61,8 @@ type Result struct {
 	HideCommands bool     `json:"-"`
 	OSVError     string   `json:"osv_error,omitempty"`
 	ScanErrors   []string `json:"scan_errors,omitempty"`
-	// Skipped lists directories not read (depth limit, no permission).
+	// Skipped lists directories not read (depth limit or no permission). Any
+	// skipped directory makes the result incomplete because it may contain evidence.
 	Skipped     []string `json:"skipped_dirs,omitempty"`
 	ParseErrors []string `json:"parse_errors,omitempty"`
 }
@@ -108,7 +109,7 @@ func (r *Result) Warnings() bool {
 
 // Incomplete reports failures that prevent a complete verdict.
 func (r *Result) Incomplete() bool {
-	return r.OSVError != "" || len(r.ParseErrors) > 0 || len(r.ScanErrors) > 0
+	return r.OSVError != "" || len(r.ParseErrors) > 0 || len(r.ScanErrors) > 0 || len(r.Skipped) > 0
 }
 
 // ExitCode preserves critical detections even when another check fails.

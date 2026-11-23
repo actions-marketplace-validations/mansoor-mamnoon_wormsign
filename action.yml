@@ -9,8 +9,8 @@ inputs:
     description: Directory to scan.
     default: "."
   version:
-    description: wormsign version to install, for example 0.1.5. Defaults to the latest release.
-    default: ""
+    description: Scanner version to use. Defaults to building this exact Action revision; set a release version to download it.
+    default: "source"
   args:
     description: Whitespace-separated extra flags, for example "--strict". Shell quoting and glob expansion are not supported.
     default: ""
@@ -22,7 +22,13 @@ runs:
       env:
         WORMSIGN_VERSION: ${{ inputs.version }}
         WORMSIGN_INSTALL_DIR: ${{ runner.temp }}/wormsign
-      run: sh "$GITHUB_ACTION_PATH/install.sh"
+      run: |
+        if [ "$WORMSIGN_VERSION" = source ]; then
+          mkdir -p "$WORMSIGN_INSTALL_DIR"
+          go build -trimpath -o "$WORMSIGN_INSTALL_DIR/wormsign" "$GITHUB_ACTION_PATH"
+        else
+          sh "$GITHUB_ACTION_PATH/install.sh"
+        fi
     - name: Scan
       shell: bash
       env:
