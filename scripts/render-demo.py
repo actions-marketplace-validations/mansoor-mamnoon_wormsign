@@ -19,6 +19,8 @@ from pathlib import Path
 COMMAND = "wormsign --demo"
 COLS = 104
 
+if len(sys.argv) != 2:
+    sys.exit(f"usage: {Path(sys.argv[0]).name} /path/to/wormsign")
 binary = Path(sys.argv[1]).resolve()
 if not shutil.which("agg"):
     sys.exit("render-demo: agg not found (https://github.com/asciinema/agg)")
@@ -49,14 +51,9 @@ emit("\x1b[32m$\x1b[0m ", 0.0)
 for ch in COMMAND:
     emit(ch, 0.07)
 emit("\r\n", 0.35)
-frames = "⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏"
-for i in range(14):
-    emit(f"\r\x1b[K{frames[i % len(frames)]} checking 3 packages against OSV.dev...", 0.08)
-emit("\r\x1b[K", 0.08)
 for line in out.rstrip("\n").split("\n"):
     emit(line + "\r\n", 0.045)
 emit("\x1b[?25l", 0.05)  # hide the cursor on the final frame
-emit("", 6.0)
 
 target = Path(__file__).resolve().parents[1] / "docs" / "demo.gif"
 with tempfile.NamedTemporaryFile("w", suffix=".cast", delete=False) as cast:

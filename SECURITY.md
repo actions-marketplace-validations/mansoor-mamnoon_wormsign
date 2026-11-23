@@ -12,8 +12,7 @@ to send a report to the maintainers.
 
 Include the affected version, operating system, a minimal reproduction, the
 impact, and any suggested fix. Do not include real credentials or other
-people's data. You can expect an acknowledgement within seven days. We will
-coordinate disclosure after a fix is available.
+people's data. We will discuss remediation and disclosure with the reporter.
 
 Reports about a missed malware campaign or a false positive are not product
 vulnerabilities. Use the repository's issue templates for those.

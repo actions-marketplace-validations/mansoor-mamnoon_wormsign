@@ -12,14 +12,6 @@ import (
 	"strings"
 )
 
-// ClaudeHooks inspects Claude Code settings files for hooks. Worms add
-// SessionStart hooks to project .claude/settings.json so their payload runs
-// every time someone opens the repo in Claude Code.
-func ClaudeHooks(path string, projectLevel bool) []Finding {
-	findings, _ := CheckClaudeHooks(path, projectLevel)
-	return findings
-}
-
 // CheckClaudeHooks inspects hooks and returns read or configuration errors.
 func CheckClaudeHooks(path string, projectLevel bool) ([]Finding, error) {
 	var s struct {
@@ -99,13 +91,6 @@ func CheckClaudeHooks(path string, projectLevel bool) ([]Finding, error) {
 		})
 	}
 	return out, nil
-}
-
-// VSCodeTasks flags tasks that auto-run when a folder is opened. Worms inject
-// these into .vscode/tasks.json so opening the repo re-infects the machine.
-func VSCodeTasks(path string) []Finding {
-	findings, _ := CheckVSCodeTasks(path)
-	return findings
 }
 
 // CheckVSCodeTasks inspects automatic tasks and returns configuration errors.
@@ -201,12 +186,6 @@ func MCPConfigPaths(home string) map[string]string {
 		p[filepath.Join(appdata, "Code/User/mcp.json")] = "VS Code"
 	}
 	return p
-}
-
-// ReadMCP returns the servers declared in one MCP config file.
-func ReadMCP(path, client string) []MCPServer {
-	servers, _ := CheckMCP(path, client)
-	return servers
 }
 
 // CheckMCP inventories servers and returns read or configuration errors.

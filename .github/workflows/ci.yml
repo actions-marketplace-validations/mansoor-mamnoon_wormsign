@@ -11,17 +11,26 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
         go: ["1.22.x", "1.27.x"]
+        exclude:
+          # Go 1.22's linker cannot produce binaries accepted by macOS 26.
+          - os: macos-latest
+            go: "1.22.x"
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go }}
-      - name: gofmt
-        if: runner.os != 'Windows' && matrix.go == '1.27.x'
+      - name: Check formatting with minimum Go version
+        if: runner.os != 'Windows' && matrix.go == '1.22.x'
         run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
       - run: go vet ./...
-      - run: go test -race ./...
+      - name: Test minimum Go version
+        if: matrix.go == '1.22.x'
+        run: go test ./...
+      - name: Test with race detector
+        if: matrix.go == '1.27.x'
+        run: go test -race ./...
       - name: demo smoke test
         run: go run . --demo --offline
 
