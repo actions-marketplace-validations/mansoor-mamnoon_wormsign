@@ -37,7 +37,7 @@ the file's SHA-256 before installing it:
 curl -fsSL https://raw.githubusercontent.com/mansoor-mamnoon/wormsign/main/install.sh | sh
 ```
 
-Or build it with Go 1.22 or later:
+Or build it with Go 1.26.11 or later:
 
 ```sh
 go install github.com/mansoor-mamnoon/wormsign@latest
@@ -87,7 +87,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-go@v5
         with:
-          go-version: "1.22.x"
+          go-version: "1.26.11"
       - uses: mansoor-mamnoon/wormsign@v0.1.6
 ```
 
@@ -132,7 +132,7 @@ go test -race ./...
 go run . --demo
 ```
 
-CI checks formatting with Go 1.27's `gofmt`. `scripts/render-demo.py` re-records
+CI checks formatting with the minimum supported Go version's `gofmt`. `scripts/render-demo.py` re-records
 `docs/demo.gif` and needs [agg](https://github.com/asciinema/agg).
 
 I wrote wormsign with help from Claude Code.
