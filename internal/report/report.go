@@ -110,7 +110,6 @@ func Text(w io.Writer, r *scan.Result, s Style, home, version string) {
 		}
 	}
 
-	// 1. Verdict.
 	switch {
 	case r.Critical():
 		p("  %s%s✗ DETECTED%s  %s\n\n", s.red, s.bold, s.reset, joinNonEmpty(
@@ -178,7 +177,6 @@ func Text(w io.Writer, r *scan.Result, s Style, home, version string) {
 		}
 	}
 
-	// 3. Worm traces.
 	if traces > 0 {
 		heading := "Worm traces"
 		if crit == 0 {
@@ -209,7 +207,6 @@ func Text(w io.Writer, r *scan.Result, s Style, home, version string) {
 		p("\n")
 	}
 
-	// 4. What was checked and came back clean.
 	var clean []string
 	if r.OSVChecked && len(r.Hits) == 0 {
 		clean = append(clean, fmt.Sprintf("packages (%s lockfiles and installs)", commas(r.Sources)))
@@ -232,8 +229,7 @@ func Text(w io.Writer, r *scan.Result, s Style, home, version string) {
 		p("  %s✓%s %sNo matching indicators: %s%s\n\n", s.green, s.reset, s.dim, strings.Join(clean, ", "), s.reset)
 	}
 
-	// 5. MCP inventory: injected servers are a recent worm trick, and only a
-	// person knows which ones they installed.
+	// Only the user knows which MCP servers they installed.
 	if len(r.MCPServers) > 0 {
 		p("  %sMCP servers on this machine%s %s(check that you installed each one)%s\n", s.bold, s.reset, s.dim, s.reset)
 		for i, m := range r.MCPServers {
@@ -246,7 +242,6 @@ func Text(w io.Writer, r *scan.Result, s Style, home, version string) {
 		p("\n")
 	}
 
-	// 6. Steps.
 	var fixes []string
 	for _, f := range r.Findings {
 		if f.Severity != ioc.Info && f.Fix != "" && !slices.Contains(fixes, f.Fix) {
