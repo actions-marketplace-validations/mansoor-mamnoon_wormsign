@@ -46,6 +46,9 @@ implemented.
 - **Packages:** npm, yarn, pnpm, Bun, pip, poetry, uv, and pipenv lockfiles;
   installed `node_modules` and `site-packages`; global installs; the npx cache; and pipx
   and uv tools. Each discovered version is checked against [OSV](https://osv.dev).
+  For pip, this includes exact pins in `requirements*.txt`, `*-requirements.txt`,
+  and `.txt` files directly inside a `requirements/` directory. For example,
+  `wormsign --project .` checks both `dev-requirements.txt` and `requirements/production.txt`.
 - **Persistence:** Claude Code hooks; MCP server configs; VS Code tasks; dev-container
   commands; GitHub workflows; LaunchAgents; systemd user units; crontab; shell startup
   files; and known payload filenames.
@@ -81,7 +84,7 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: "1.26.11"
-      - uses: mansoor-mamnoon/wormsign@v0.1.6
+      - uses: mansoor-mamnoon/wormsign@v0.2.0
 ```
 
 The action scans the repository only, fails on a critical finding, and writes the report to
