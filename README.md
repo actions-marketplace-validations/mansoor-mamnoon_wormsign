@@ -10,14 +10,9 @@
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-blue" alt="MIT"></a>
 </p>
 
-Checking a machine after a package-supply-chain incident involves more than the
-current lockfile. Affected versions can remain in old projects, global installs, and package
-caches, while code that already ran may have added hooks or startup entries.
-
-wormsign inventories supported npm and Python package locations, checks discovered versions
-against OSV malware records, and inspects supported configuration and startup locations for
-known or suspicious persistence indicators. After a critical finding, it lists local
-credential stores that may require rotation.
+wormsign checks lockfiles, installed packages and caches against OSV malware records.
+It also checks editor hooks and startup entries for persistence. After a critical
+finding, it lists local credentials to review for rotation.
 
 ```sh
 brew install mansoor-mamnoon/tap/wormsign
@@ -30,8 +25,7 @@ wormsign
 
 ## Install
 
-Homebrew is above. You can also download a release binary with this script, which checks
-the file's SHA-256 before installing it:
+The installer verifies the release archive’s SHA-256 checksum before installing the binary:
 
 ```sh
 curl -fsSL https://raw.githubusercontent.com/mansoor-mamnoon/wormsign/main/install.sh | sh
@@ -45,7 +39,7 @@ go install github.com/mansoor-mamnoon/wormsign@latest
 
 Windows binaries are on the [releases page](https://github.com/mansoor-mamnoon/wormsign/releases).
 On Windows, package and project-config scanning works, but startup-entry checks are not yet
-implemented. It isn't published to npm.
+implemented.
 
 ## What it looks at
 
@@ -56,9 +50,8 @@ implemented. It isn't published to npm.
   commands; GitHub workflows; LaunchAgents; systemd user units; crontab; shell startup
   files; and known payload filenames.
 
-A known worm file, domain or package version is reported as critical. Things that are only
-suspicious, like `curl | sh` in a startup task, are warnings, since plenty of normal tools do
-that too. Each report starts with CLEAN, REVIEW, DETECTED or PARTIAL. PARTIAL means part of
+A known worm file, domain or malicious package version triggers a critical finding.
+A command such as `curl | sh` in a startup task triggers a warning. Each report starts with CLEAN, REVIEW, DETECTED or PARTIAL. PARTIAL means part of
 the scan failed or you used `--offline`.
 
 A bad version in a lockfile doesn't prove the code ran, and a clean result only means nothing
@@ -108,17 +101,17 @@ download a release binary instead.
 --no-globals  skip global installs and caches
 ```
 
-It exits 0 when nothing critical is found, 1 when something is, and 2 when the scan couldn't
-finish, for example when OSV is unreachable.
+Exit codes are 0 for a passing scan, 1 for a critical finding or a warning under
+`--strict`, and 2 for a scan error such as an unreachable OSV endpoint.
 
 ## Limits
 
-It only knows about malware that's in OSV and the patterns in this repo, so a campaign
-reported this morning may not be covered yet. The pattern checks can flag legitimate tools
-and miss renamed payloads. To keep a home-directory scan bounded, wormsign skips caches,
+Coverage depends on OSV records and the detection rules in this repository.
+Rules can flag legitimate tools and miss renamed payloads. To keep a home-directory scan bounded, wormsign skips caches,
 VCS internals, toolchains, cloud-synced folders and directories deeper than 14 levels; use an
 explicit path to scan a skipped project. Unreadable or depth-limited directories make the
-result PARTIAL. It doesn't parse Bun's binary `bun.lockb`, and it doesn't check Windows
+result PARTIAL. Linked lockfiles and project configs also make the scan partial.
+Installed npm manifest checks follow links only within the scanned `node_modules` tree. It doesn't parse Bun's binary `bun.lockb`, and it doesn't check Windows
 startup entries yet. It scans once and doesn't remove anything. If something ran,
 rotate your credentials from a different machine.
 
