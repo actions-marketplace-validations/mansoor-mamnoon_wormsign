@@ -53,7 +53,9 @@ func ParserFor(path string) (Parser, string) {
 	case "Pipfile.lock":
 		return ParsePipfileLock, "pipenv"
 	}
-	if strings.HasPrefix(base, "requirements") && strings.HasSuffix(base, ".txt") {
+	inRequirementsDir := filepath.Base(filepath.Dir(path)) == "requirements"
+	if strings.HasSuffix(base, ".txt") && (strings.HasPrefix(base, "requirements") ||
+		strings.HasSuffix(base, "-requirements.txt") || inRequirementsDir) {
 		return ParseRequirements, "pip"
 	}
 	return nil, ""

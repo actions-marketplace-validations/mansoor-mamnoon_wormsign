@@ -139,3 +139,19 @@ func TestLinkedLockfileIsIncomplete(t *testing.T) {
 		t.Fatalf("unexpected inventory: %+v", inv)
 	}
 }
+
+func TestEnvironmentRequirements(t *testing.T) {
+	root := t.TempDir()
+	writeAuditFile(t, root, "dev-requirements.txt", "dev-only==1.2\n")
+	writeAuditFile(t, root, "requirements/production.txt", "prod-only==2.1\nunpinned>=3\n")
+	writeAuditFile(t, root, "docs/production.txt", "example==3.1\n")
+	writeAuditFile(t, root, "requirements/production.in", "input==4.1\n")
+	inv := Walk(Options{Roots: []string{root}})
+	var got []string
+	for _, p := range inv.AllPackages() {
+		got = append(got, p.String())
+	}
+	if want := []string{"dev-only@1.2", "prod-only@2.1"}; !reflect.DeepEqual(got, want) || len(inv.Errors) != 0 {
+		t.Fatalf("packages %v, errors %v; want %v", got, inv.Errors, want)
+	}
+}
