@@ -21,7 +21,12 @@ jobs:
         if: runner.os != 'Windows' && matrix.go == '1.27.x'
         run: test -z "$(gofmt -l .)" || { gofmt -l .; exit 1; }
       - run: go vet ./...
-      - run: go test -race ./...
+      - name: Test minimum Go version
+        if: matrix.go == '1.22.x'
+        run: go test ./...
+      - name: Test with race detector
+        if: matrix.go == '1.27.x'
+        run: go test -race ./...
       - name: demo smoke test
         run: go run . --demo --offline
 
