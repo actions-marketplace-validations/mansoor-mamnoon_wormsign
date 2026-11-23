@@ -5,6 +5,7 @@ package discover
 
 import (
 	"context"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
@@ -131,7 +132,7 @@ func Walk(opt Options) *Inventory {
 				}
 				return nil
 			}
-			inv.file(path, name)
+			inv.file(path, name, d.Type())
 			return nil
 		})
 		if walkErr != nil {
@@ -142,24 +143,30 @@ func Walk(opt Options) *Inventory {
 	return inv
 }
 
-func (inv *Inventory) file(path, name string) {
+func (inv *Inventory) file(path, name string, mode fs.FileMode) {
 	parent := filepath.Base(filepath.Dir(path))
-	switch {
-	case parent == ".vscode" && (name == "tasks.json" || name == "mcp.json"),
-		parent == ".claude" && strings.HasPrefix(name, "settings") && strings.HasSuffix(name, ".json"),
-		parent == ".cursor" && name == "mcp.json",
-		parent == ".devcontainer" && name == "devcontainer.json",
-		name == ".devcontainer.json",
-		name == ".mcp.json":
-		inv.Configs = append(inv.Configs, path)
-		return
-	case parent == "workflows" && filepath.Base(filepath.Dir(filepath.Dir(path))) == ".github" &&
-		(strings.HasSuffix(name, ".yml") || strings.HasSuffix(name, ".yaml")):
-		inv.Workflows = append(inv.Workflows, path)
+	parse, kind := pkgs.ParserFor(path)
+	config := parent == ".vscode" && (name == "tasks.json" || name == "mcp.json") ||
+		parent == ".claude" && strings.HasPrefix(name, "settings") && strings.HasSuffix(name, ".json") ||
+		parent == ".cursor" && name == "mcp.json" ||
+		parent == ".devcontainer" && name == "devcontainer.json" ||
+		name == ".devcontainer.json" ||
+		name == ".mcp.json"
+	workflow := parent == "workflows" && filepath.Base(filepath.Dir(filepath.Dir(path))) == ".github" &&
+		(strings.HasSuffix(name, ".yml") || strings.HasSuffix(name, ".yaml"))
+	if !config && !workflow && parse == nil {
 		return
 	}
-	parse, kind := pkgs.ParserFor(path)
-	if parse == nil {
+	if !mode.IsRegular() {
+		inv.Errors = append(inv.Errors, fmt.Errorf("%s: scan input is not a regular file", path))
+		return
+	}
+	if config {
+		inv.Configs = append(inv.Configs, path)
+		return
+	}
+	if workflow {
+		inv.Workflows = append(inv.Workflows, path)
 		return
 	}
 	data, err := os.ReadFile(path)

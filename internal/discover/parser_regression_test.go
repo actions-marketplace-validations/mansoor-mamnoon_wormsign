@@ -121,3 +121,16 @@ func TestTOMLCommentsAndSubtables(t *testing.T) {
 		t.Fatalf("packages %v", got)
 	}
 }
+
+func TestLinkedLockfileIsIncomplete(t *testing.T) {
+	root := t.TempDir()
+	outside := t.TempDir()
+	writeAuditFile(t, outside, "requirements.txt", "private==1.0")
+	if err := os.Symlink(filepath.Join(outside, "requirements.txt"), filepath.Join(root, "requirements.txt")); err != nil {
+		t.Skip(err)
+	}
+	inv := Walk(Options{Roots: []string{root}})
+	if len(inv.Errors) != 1 || len(inv.Sources) != 0 {
+		t.Fatalf("unexpected inventory: %+v", inv)
+	}
+}
