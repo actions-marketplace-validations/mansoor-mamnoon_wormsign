@@ -86,6 +86,11 @@ func TestPNPMInstalledTransitivePackages(t *testing.T) {
 	if err := os.Symlink("../../transitive@2.0.0/node_modules/transitive", filepath.Join(root, "node_modules", ".pnpm", "direct@1.0.0", "node_modules", "transitive")); err != nil {
 		t.Fatal(err)
 	}
+	outside := t.TempDir()
+	writeAuditFile(t, outside, "package.json", `{"name":"outside","version":"1.0.0"}`)
+	if err := os.Symlink(outside, filepath.Join(root, "node_modules", "outside")); err != nil {
+		t.Fatal(err)
+	}
 	inv := Walk(Options{Roots: []string{root}})
 	inv.ScanProjectNodeModules()
 	var got []string
@@ -119,5 +124,34 @@ func TestTOMLCommentsAndSubtables(t *testing.T) {
 	}
 	if !reflect.DeepEqual(got, []string{"idna@3.6", "requests@2.31.0"}) {
 		t.Fatalf("packages %v", got)
+	}
+}
+
+func TestLinkedLockfileIsIncomplete(t *testing.T) {
+	root := t.TempDir()
+	outside := t.TempDir()
+	writeAuditFile(t, outside, "requirements.txt", "private==1.0")
+	if err := os.Symlink(filepath.Join(outside, "requirements.txt"), filepath.Join(root, "requirements.txt")); err != nil {
+		t.Skip(err)
+	}
+	inv := Walk(Options{Roots: []string{root}})
+	if len(inv.Errors) != 1 || len(inv.Sources) != 0 {
+		t.Fatalf("unexpected inventory: %+v", inv)
+	}
+}
+
+func TestEnvironmentRequirements(t *testing.T) {
+	root := t.TempDir()
+	writeAuditFile(t, root, "dev-requirements.txt", "dev-only==1.2\n")
+	writeAuditFile(t, root, "requirements/production.txt", "prod-only==2.1\nunpinned>=3\n")
+	writeAuditFile(t, root, "docs/production.txt", "example==3.1\n")
+	writeAuditFile(t, root, "requirements/production.in", "input==4.1\n")
+	inv := Walk(Options{Roots: []string{root}})
+	var got []string
+	for _, p := range inv.AllPackages() {
+		got = append(got, p.String())
+	}
+	if want := []string{"dev-only@1.2", "prod-only@2.1"}; !reflect.DeepEqual(got, want) || len(inv.Errors) != 0 {
+		t.Fatalf("packages %v, errors %v; want %v", got, inv.Errors, want)
 	}
 }

@@ -10,8 +10,6 @@ import (
 	"github.com/mansoor-mamnoon/wormsign/internal/pkgs"
 )
 
-// These tests exercise the client over actual HTTP connections, including
-// malformed wire responses; no transport or filesystem doubles are installed.
 func TestInvalidAdvisoryCannotEraseMalware(t *testing.T) {
 	for _, body := range []string{"{}", "null", `{"id":"GHSA-different"}`} {
 		t.Run(body, func(t *testing.T) {
@@ -136,5 +134,19 @@ func TestLaterPageFailurePreservesMalware(t *testing.T) {
 	hits, err := client.Check(context.Background(), []pkgs.Package{{Name: "bad", Version: "1.0.0", Ecosystem: pkgs.NPM}})
 	if err == nil || len(hits) != 1 || !hits[0].Advisories[0].Malicious {
 		t.Fatalf("lost malware on pagination failure: hits=%+v err=%v", hits, err)
+	}
+}
+
+func TestBatchRejectsRedirect(t *testing.T) {
+	destination := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { t.Error("received redirected inventory") }))
+	defer destination.Close()
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, destination.URL, http.StatusTemporaryRedirect)
+	}))
+	defer server.Close()
+	client := New()
+	client.BaseURL = server.URL
+	if _, err := client.Check(context.Background(), []pkgs.Package{{Name: "private", Version: "1", Ecosystem: pkgs.NPM}}); err == nil {
+		t.Fatal("redirected batch succeeded")
 	}
 }

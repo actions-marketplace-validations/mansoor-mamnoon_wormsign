@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"slices"
@@ -30,7 +31,10 @@ type Client struct {
 }
 
 func New() *Client {
-	return &Client{BaseURL: "https://api.osv.dev", HTTP: &http.Client{Timeout: 60 * time.Second}}
+	return &Client{BaseURL: "https://api.osv.dev", HTTP: &http.Client{
+		Timeout:       60 * time.Second,
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
+	}}
 }
 
 // Advisory is a matched OSV record.
@@ -292,7 +296,15 @@ func (c *Client) do(req *http.Request, v any) error {
 		if resp.StatusCode != 200 {
 			return fmt.Errorf("osv: %s %s", req.URL.Path, resp.Status)
 		}
-		return json.NewDecoder(resp.Body).Decode(v)
+		const maxResponse = 16 << 20
+		data, err := io.ReadAll(io.LimitReader(resp.Body, maxResponse+1))
+		if err != nil {
+			return err
+		}
+		if len(data) > maxResponse {
+			return fmt.Errorf("osv: response exceeds %d bytes", maxResponse)
+		}
+		return json.Unmarshal(data, v)
 	}
 	return lastErr
 }
